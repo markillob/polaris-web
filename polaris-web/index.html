@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Polaris</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      background: #f7f9fc;
+      color: #111827;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(45, 118, 255, 0.10), transparent 34rem),
+        linear-gradient(180deg, #ffffff 0%, #f7f9fc 42%, #eef3f8 100%);
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 64px;
+      border-bottom: 1px solid rgba(204, 213, 227, 0.75);
+    }
+
+    .brand {
+      color: #101828;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-decoration: none;
+    }
+
+    .hero {
+      max-width: 820px;
+      margin: 56px auto 34px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: #2468f2;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: clamp(44px, 8vw, 82px);
+      line-height: 1.1;
+      letter-spacing: 0;
+      font-weight: 800;
+    }
+
+    .hero-copy {
+      max-width: 620px;
+      margin: 0 auto;
+      color: #485568;
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .status {
+      margin: 0 auto 18px;
+      color: #556070;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin: 0 0 28px;
+    }
+
+    .action-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 22px;
+      border: 1px solid #2468f2;
+      border-radius: 8px;
+      background: #2468f2;
+      color: #ffffff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      text-decoration: none;
+      transition: background 120ms ease, transform 120ms ease;
+    }
+
+    .action-button:hover,
+    .action-button:focus-visible,
+    .action-button.active {
+      background: #1d58cf;
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .panel {
+      display: none;
+      margin-bottom: 28px;
+    }
+
+    .panel.visible {
+      display: block;
+    }
+
+    .summary-grid,
+    .status-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .summary-section {
+      margin-top: 18px;
+    }
+
+    .summary-section h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .status-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .search-bar {
+      margin: 0 0 14px;
+    }
+
+    .search-input {
+      width: 100%;
+      min-height: 44px;
+      padding: 0 14px;
+      border: 1px solid #ccd5e3;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #172033;
+      font: inherit;
+      font-size: 15px;
+    }
+
+    .search-input:focus {
+      border-color: #2468f2;
+      outline: 3px solid rgba(36, 104, 242, 0.14);
+    }
+
+    .filter-button {
+      min-height: 36px;
+      padding: 0 14px;
+      border: 1px solid #ccd5e3;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #172033;
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .filter-button:hover,
+    .filter-button:focus-visible,
+    .filter-button.active {
+      border-color: #2468f2;
+      background: #eef4ff;
+      outline: none;
+    }
+
+    .metric {
+      padding: 14px;
+      border: 1px solid rgba(204, 213, 227, 0.9);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .metric span {
+      display: block;
+      color: #667080;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .sites {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 24px;
+      padding: 20px;
+      border: 1px solid rgba(216, 222, 232, 0.9);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.84);
+      box-shadow: 0 18px 48px rgba(20, 35, 66, 0.08);
+    }
+
+    .site-button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 58px;
+      border: 1px solid #ccd5e3;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #172033;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+    }
+
+    .site-button:hover,
+    .site-button:focus-visible {
+      border-color: #2468f2;
+      background: #eef4ff;
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .site-button.selected {
+      border-color: #2468f2;
+      background: #2468f2;
+      color: #ffffff;
+    }
+
+    .site-button-nonnumeric {
+      border-color: #f3bf74;
+      background: #fff0d6;
+    }
+
+    .site-button-missing-first-seen {
+      border-color: #f1a7a7;
+      background: #ffe1e1;
+    }
+
+    .site-id,
+    .device-count {
+      display: block;
+    }
+
+    .site-id {
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .device-count {
+      margin-top: 4px;
+      color: #667080;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 18px 48px rgba(20, 35, 66, 0.08);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 520px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e4e9f1;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f0f3f8;
+      color: #39445a;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tr.status-row-down td {
+      background: #fff0d6;
+    }
+
+    tr.status-row-down td:first-child {
+      box-shadow: inset 4px 0 0 #f59e0b;
+    }
+
+    .empty,
+    .error {
+      padding: 16px;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .error {
+      border-color: #efb4b4;
+      color: #8a1f1f;
+    }
+
+    @keyframes riseIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 640px) {
+      main {
+        width: min(100% - 20px, 1180px);
+        padding-top: 16px;
+      }
+
+      .hero {
+        margin: 36px auto 24px;
+      }
+
+      .hero-copy {
+        font-size: 16px;
+      }
+
+      .sites {
+        grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+        padding: 12px;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/polaris-web/theme.css">
+  <script defer src="/polaris-web/theme.js"></script>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <a class="brand" href="#">Polaris</a>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">Network Visibility Tool</p>
+      <h1 id="page-title">Polaris</h1>
+    </section>
+
+    <section class="actions" aria-label="Network status actions">
+      <a class="action-button" href="/polaris-web/status.html" id="status-button">status</a>
+      <a class="action-button" href="/polaris-web/summary.html" id="summary-button">summary</a>
+      <a class="action-button" href="/polaris-web/uptime.html" id="uptime-button">device status</a>
+      <a class="action-button" href="/polaris-web/endpoints.html" id="endpoints-button">endpoints</a>
+      <a class="action-button" href="/endpoint_feed" id="endpoint-feed-button">endpoint feed</a>
+      <a class="action-button" href="/polaris-web/routes.html" id="routes-button">routes</a>
+      <a class="action-button" href="/polaris-web/locations.html" id="locations-button">locations</a>
+    </section>
+
+    <h2 class="section-title">Sites</h2>
+    <div class="search-bar">
+      <input class="search-input" type="search" id="site-search" placeholder="Search sites, devices, IPs, serials, or types" autocomplete="off">
+    </div>
+    <p class="status" id="status">Loading site IDs...</p>
+    <section class="sites" id="sites" aria-label="Site IDs"></section>
+
+    <section class="panel operation-panel" id="uptime-panel" aria-live="polite">
+      <h2 class="section-title">Uptime</h2>
+      <div class="search-bar">
+        <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like site:623 device:core member:1 uptime:weeks" autocomplete="off">
+      </div>
+      <p class="status" id="uptime-count"></p>
+      <div id="uptime-results"></div>
+    </section>
+
+    <section class="panel operation-panel" id="endpoints-panel" aria-live="polite">
+      <h2 class="section-title">Endpoints</h2>
+      <div class="search-bar">
+        <input class="search-input" type="search" id="endpoints-search" placeholder="Search all columns or use filters like site:310 hostname:AP114 vlan:45 mac:70:7D port:lag51" autocomplete="off">
+      </div>
+      <p class="status" id="endpoints-count"></p>
+      <div id="endpoints-results"></div>
+    </section>
+
+    <section class="panel status-panel" id="status-panel" aria-live="polite">
+      <h2 class="section-title">SSH Status</h2>
+      <div class="status-summary" id="status-summary"></div>
+      <div class="status-filters" id="status-filters" hidden>
+        <button class="filter-button active" type="button" data-filter="all">all</button>
+        <button class="filter-button" type="button" data-filter="reachable">reachable</button>
+        <button class="filter-button" type="button" data-filter="down">not reachable / down</button>
+      </div>
+      <div id="status-results"></div>
+    </section>
+  </main>
+
+  <script>
+    const sitesEl = document.getElementById("sites");
+    const statusEl = document.getElementById("status");
+    const siteSearchEl = document.getElementById("site-search");
+    const statusButtonEl = document.getElementById("status-button");
+    const uptimeButtonEl = document.getElementById("uptime-button");
+    const endpointsButtonEl = document.getElementById("endpoints-button");
+    const statusPanelEl = document.getElementById("status-panel");
+    const uptimePanelEl = document.getElementById("uptime-panel");
+    const endpointsPanelEl = document.getElementById("endpoints-panel");
+    const statusSummaryEl = document.getElementById("status-summary");
+    const statusFiltersEl = document.getElementById("status-filters");
+    const statusResultsEl = document.getElementById("status-results");
+    const uptimeSearchEl = document.getElementById("uptime-search");
+    const uptimeCountEl = document.getElementById("uptime-count");
+    const uptimeResultsEl = document.getElementById("uptime-results");
+    const endpointsSearchEl = document.getElementById("endpoints-search");
+    const endpointsCountEl = document.getElementById("endpoints-count");
+    const endpointsResultsEl = document.getElementById("endpoints-results");
+    const siteSorter = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+    const inventoryFile = "/api/inventory";
+    const inventorySourceName = "inventory.db";
+    const statusFile = "/polaris/data/CHECK_SSH_All_Sites_20260521_185956.csv";
+    const operationsManifestFile = "/polaris/data/site_operations.json";
+    const endpointsFile = "/api/enterprise_endpoints";
+    const endpointsSourceName = "enterprise_endpoints.db";
+    let allSites = [];
+    let sshStatusRows = [];
+    let sshStatusFilter = "all";
+    let operationsManifest = null;
+    let endpointsData = null;
+    let endpointFirstSeenSites = new Set();
+    let endpointFirstSeenMetadataLoaded = false;
+    let uptimeRows = [];
+    let endpointRows = [];
+    const uptimeColumns = [
+      { key: "site", label: "Site" },
+      { key: "device", label: "Device" },
+      { key: "ipAddress", label: "IP Address" },
+      { key: "member", label: "Member" },
+      { key: "serialNumber", label: "Serial Number" },
+      { key: "uptime", label: "Uptime" }
+    ];
+    const endpointColumns = [
+      { key: "site", label: "Site" },
+      { key: "device", label: "Device" },
+      { key: "hostname", label: "Hostname" },
+      { key: "entryIp", label: "Endpoint IP" },
+      { key: "entryMac", label: "Endpoint MAC" },
+      { key: "vlan", label: "VLAN" },
+      { key: "devicePort", label: "device_port" },
+      { key: "status", label: "STATUS" },
+      { key: "lastSeen", label: "last_seen" }
+    ];
+    const uptimeColumnAliases = {
+      site: "site",
+      device: "device",
+      fqdn: "device",
+      ip: "ipAddress",
+      ipaddress: "ipAddress",
+      ip_address: "ipAddress",
+      member: "member",
+      serial: "serialNumber",
+      serialnumber: "serialNumber",
+      serial_number: "serialNumber",
+      uptime: "uptime"
+    };
+    const endpointColumnAliases = {
+      site: "site",
+      device: "device",
+      fqdn: "device",
+      host: "hostname",
+      hostname: "hostname",
+      name: "hostname",
+      ip: "entryIp",
+      entryip: "entryIp",
+      entry_ip: "entryIp",
+      endpointip: "entryIp",
+      endpoint_ip: "entryIp",
+      mac: "entryMac",
+      entrymac: "entryMac",
+      entry_mac: "entryMac",
+      endpointmac: "entryMac",
+      endpoint_mac: "entryMac",
+      vlan: "vlan",
+      port: "devicePort",
+      interface: "devicePort",
+      deviceport: "devicePort",
+      device_port: "devicePort",
+      status: "status",
+      active: "status",
+      state: "status",
+      lastseen: "lastSeen",
+      last_seen: "lastSeen"
+    };
+
+    function normalizeSites(devices) {
+      const sites = new Map();
+
+      for (const row of devices || []) {
+        const siteId = String(row.site || "").trim();
+
+        if (!siteId) {
+          continue;
+        }
+
+        if (!sites.has(siteId)) {
+          sites.set(siteId, []);
+        }
+
+        sites.get(siteId).push({
+          fqdn: row.fqdn || "-",
+          ipAddress: row.ip_address || "-",
+          serialNumber: row.serial_number || "-",
+          deviceType: row.device_type || "-",
+          deviceRole: row.device_role || "-"
+        });
+      }
+
+      return [...sites.entries()]
+        .map(([siteId, devices]) => ({ siteId, devices }))
+        .sort((a, b) => siteSorter.compare(a.siteId, b.siteId));
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[character]));
+    }
+
+    function siteMatchesQuery(site, query) {
+      if (!query) {
+        return true;
+      }
+
+      const searchableValues = [
+        site.siteId,
+        ...site.devices.flatMap((device) => [
+          device.fqdn,
+          device.ipAddress,
+          device.serialNumber,
+          device.deviceType
+        ])
+      ];
+
+      return searchableValues.some((value) => String(value).toLowerCase().includes(query));
+    }
+
+    function renderSites() {
+      const query = siteSearchEl.value.trim().toLowerCase();
+      const sites = allSites.filter((site) => siteMatchesQuery(site, query));
+
+      sitesEl.innerHTML = "";
+
+      if (sites.length === 0) {
+        sitesEl.innerHTML = query
+          ? '<div class="empty">No sites match the current search.</div>'
+          : '<div class="empty">No site IDs found.</div>';
+        statusEl.textContent = query ? `0 of ${allSites.length} site IDs` : "0 site IDs";
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+
+      for (const site of sites) {
+        const link = document.createElement("a");
+        const isNumericSiteId = /^\d+$/.test(site.siteId);
+        const missingFirstSeen = endpointFirstSeenMetadataLoaded && !endpointFirstSeenSites.has(site.siteId);
+        const classes = ["site-button"];
+
+        if (!isNumericSiteId) {
+          classes.push("site-button-nonnumeric");
+        }
+
+        if (missingFirstSeen) {
+          classes.push("site-button-missing-first-seen");
+        }
+
+        link.className = classes.join(" ");
+        link.href = `site.html?site=${encodeURIComponent(site.siteId)}`;
+        link.innerHTML = `
+          <span class="site-id">${escapeHtml(site.siteId)}</span>
+          <span class="device-count">${site.devices.length} devices</span>
+        `;
+        link.setAttribute("aria-label", `Open site ${site.siteId}, ${site.devices.length} devices${missingFirstSeen ? ", first_seen not populated" : ""}`);
+        if (missingFirstSeen) {
+          link.title = "first_seen is not populated for this site";
+        }
+        fragment.append(link);
+      }
+
+      sitesEl.append(fragment);
+      const missingFirstSeenCount = endpointFirstSeenMetadataLoaded
+        ? allSites.filter((site) => !endpointFirstSeenSites.has(site.siteId)).length
+        : 0;
+      const metadataLabel = endpointFirstSeenMetadataLoaded
+        ? `, ${missingFirstSeenCount} missing first_seen`
+        : "";
+      statusEl.textContent = query
+        ? `${sites.length} of ${allSites.length} site IDs`
+        : `${sites.length} site IDs${metadataLabel}`;
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let field = "";
+      let inQuotes = false;
+
+      for (let index = 0; index < text.length; index += 1) {
+        const character = text[index];
+        const nextCharacter = text[index + 1];
+
+        if (character === '"' && inQuotes && nextCharacter === '"') {
+          field += '"';
+          index += 1;
+        } else if (character === '"') {
+          inQuotes = !inQuotes;
+        } else if (character === "," && !inQuotes) {
+          row.push(field);
+          field = "";
+        } else if ((character === "\n" || character === "\r") && !inQuotes) {
+          if (character === "\r" && nextCharacter === "\n") {
+            index += 1;
+          }
+          row.push(field);
+          if (row.some((value) => value.trim() !== "")) {
+            rows.push(row);
+          }
+          row = [];
+          field = "";
+        } else {
+          field += character;
+        }
+      }
+
+      row.push(field);
+      if (row.some((value) => value.trim() !== "")) {
+        rows.push(row);
+      }
+
+      const headers = rows.shift() || [];
+
+      return rows.map((columns) => Object.fromEntries(headers.map((header, index) => [
+        header,
+        columns[index]?.trim() || ""
+      ])));
+    }
+
+    function getFirstValue(row, keys) {
+      for (const key of keys) {
+        const value = row[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return value;
+        }
+      }
+
+      return "-";
+    }
+
+    function formatFileName(path) {
+      return path.split("/").pop() || path;
+    }
+
+    function normalizeSearchKey(value) {
+      return String(value).toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+    function getColumnKey(key, columns, aliases) {
+      const normalizedKey = normalizeSearchKey(key);
+      const aliasKey = aliases[normalizedKey];
+
+      if (aliasKey) {
+        return aliasKey;
+      }
+
+      const column = columns.find((entry) => (
+        normalizeSearchKey(entry.key) === normalizedKey ||
+        normalizeSearchKey(entry.label) === normalizedKey
+      ));
+
+      return column?.key || null;
+    }
+
+    function tokenizeSearchQuery(query) {
+      return query.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((token) => token.replace(/^"|"$/g, "")) || [];
+    }
+
+    function valueMatches(value, expected) {
+      return String(value).toLowerCase().includes(expected.toLowerCase());
+    }
+
+    function rowMatchesSearchToken(row, token, columns, aliases) {
+      const separatorIndex = token.indexOf(":");
+
+      if (separatorIndex > 0) {
+        const key = token.slice(0, separatorIndex);
+        const value = token.slice(separatorIndex + 1);
+        const columnKey = getColumnKey(key, columns, aliases);
+
+        if (columnKey && value) {
+          return valueMatches(row[columnKey], value);
+        }
+      }
+
+      return Object.values(row).some((value) => valueMatches(value, token));
+    }
+
+    function rowMatchesSearch(row, query, columns, aliases) {
+      const tokens = tokenizeSearchQuery(query);
+
+      if (tokens.length === 0) {
+        return true;
+      }
+
+      return tokens.every((token) => rowMatchesSearchToken(row, token, columns, aliases));
+    }
+
+    function renderDataTable(rows, columns) {
+      if (rows.length === 0) {
+        return '<div class="empty">No records match the current search.</div>';
+      }
+
+      const headers = columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
+      const body = rows.map((row) => `
+        <tr>
+          ${columns.map((column) => `<td>${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
+        </tr>
+      `).join("");
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>${headers}</tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function getOperationsManifest() {
+      if (operationsManifest) {
+        return operationsManifest;
+      }
+
+      const response = await fetch(operationsManifestFile, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Could not load ${operationsManifestFile} (${response.status})`);
+      }
+
+      operationsManifest = await response.json();
+      return operationsManifest;
+    }
+
+    async function getEndpointsData() {
+      if (endpointsData) {
+        return endpointsData;
+      }
+
+      const response = await fetch(endpointsFile, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Could not load ${endpointsFile} (${response.status})`);
+      }
+
+      endpointsData = await response.json();
+      return endpointsData;
+    }
+
+    function hasPopulatedValue(value) {
+      const text = String(value ?? "").trim();
+      return text !== "" && text !== "-";
+    }
+
+    function updateEndpointFirstSeenMetadata(rows) {
+      endpointFirstSeenSites = new Set();
+
+      for (const row of rows) {
+        const site = getFirstValue(row, ["site", "Site"]);
+        const firstSeen = getFirstValue(row, ["first_seen", "First_Seen", "firstSeen"]);
+
+        if (hasPopulatedValue(site) && hasPopulatedValue(firstSeen)) {
+          endpointFirstSeenSites.add(site);
+        }
+      }
+
+      endpointFirstSeenMetadataLoaded = true;
+    }
+
+    async function loadEndpointFirstSeenMetadata() {
+      try {
+        const data = await getEndpointsData();
+        updateEndpointFirstSeenMetadata(data.endpoints || []);
+        renderSites();
+      } catch (error) {
+        endpointFirstSeenMetadataLoaded = false;
+        console.error(error);
+      }
+    }
+
+    function normalizeUptimeRows(rows) {
+      return rows.map((row) => ({
+        site: getFirstValue(row, ["Site", "site"]),
+        device: getFirstValue(row, ["FQDN", "fqdn"]),
+        ipAddress: getFirstValue(row, ["IP_Address", "ip_address"]),
+        member: getFirstValue(row, ["Member"]),
+        serialNumber: getFirstValue(row, ["Serial_Number", "Member_Serial", "serial_number"]),
+        uptime: getFirstValue(row, ["Uptime", "Member_Uptime", "uptime"])
+      }));
+    }
+
+    function normalizeEndpointRows(rows) {
+      return rows.map((row) => ({
+        site: getFirstValue(row, ["site", "Site"]),
+        device: getFirstValue(row, ["device_fqdn", "Device_FQDN"]),
+        hostname: getFirstValue(row, ["Hostname", "hostname"]),
+        entryIp: getFirstValue(row, ["entry_ip", "Entry_IP"]),
+        entryMac: getFirstValue(row, ["entry_mac", "Entry_MAC"]),
+        vlan: getFirstValue(row, ["entry_vlan", "Entry_VLAN"]),
+        devicePort: getFirstValue(row, ["device_port", "Device_Port", "Entry_Port"]),
+        status: getFirstValue(row, ["active", "Active", "status", "Status"]),
+        lastSeen: getFirstValue(row, ["last_seen", "Last_Seen", "lastSeen"])
+      }));
+    }
+
+    function vlanSortValue(value) {
+      const match = String(value).match(/\d+/);
+      return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
+    }
+
+    function statusSortValue(value) {
+      const normalized = String(value).toLowerCase();
+      if (["yes", "true", "active", "reachable"].includes(normalized)) {
+        return 0;
+      }
+      if (["no", "false", "inactive", "unreachable"].includes(normalized)) {
+        return 1;
+      }
+      if (normalized.includes("reachable")) {
+        return normalized.includes("unreachable") ? 1 : 0;
+      }
+      return 2;
+    }
+
+    function sortEndpointRows(rows) {
+      return [...rows].sort((a, b) => (
+        vlanSortValue(a.vlan) - vlanSortValue(b.vlan) ||
+        statusSortValue(a.status) - statusSortValue(b.status) ||
+        siteSorter.compare(a.site, b.site) ||
+        a.device.localeCompare(b.device) ||
+        a.hostname.localeCompare(b.hostname)
+      ));
+    }
+
+    function renderUptimeResults() {
+      const query = uptimeSearchEl.value.trim();
+      const visibleRows = uptimeRows.filter((row) => rowMatchesSearch(row, query, uptimeColumns, uptimeColumnAliases));
+      const countLabel = query
+        ? `Showing ${visibleRows.length} of ${uptimeRows.length} uptime records`
+        : `Showing ${uptimeRows.length} uptime records`;
+
+      uptimeCountEl.textContent = countLabel;
+      uptimeResultsEl.innerHTML = renderDataTable(visibleRows, uptimeColumns);
+    }
+
+    function renderEndpointResults() {
+      const query = endpointsSearchEl.value.trim();
+      const visibleRows = endpointRows.filter((row) => rowMatchesSearch(row, query, endpointColumns, endpointColumnAliases));
+      const updated = endpointsData?.last_updated ? `, updated ${endpointsData.last_updated}` : "";
+      const countLabel = query
+        ? `Showing ${visibleRows.length} of ${endpointRows.length} endpoints`
+        : `Showing ${endpointRows.length} endpoints`;
+
+      endpointsCountEl.textContent = `${countLabel} from ${endpointsSourceName}${updated}`;
+      endpointsResultsEl.innerHTML = renderDataTable(visibleRows, endpointColumns);
+    }
+
+    function isReachable(row) {
+      return row.Status?.toLowerCase() === "reachable" && row.SSH_Port_22?.toLowerCase() === "open";
+    }
+
+    function rowMatchesQuery(row, query) {
+      if (!query) {
+        return true;
+      }
+
+      return Object.values(row).some((value) => String(value).toLowerCase().includes(query));
+    }
+
+    function filterStatusRows(rows) {
+      const query = siteSearchEl.value.trim().toLowerCase();
+      let filteredRows = rows;
+
+      if (sshStatusFilter === "down") {
+        filteredRows = rows.filter((row) => !isReachable(row));
+      } else if (sshStatusFilter === "reachable") {
+        filteredRows = rows.filter(isReachable);
+      }
+
+      return filteredRows.filter((row) => rowMatchesQuery(row, query));
+    }
+
+    function formatStatusFileDate(path) {
+      const match = path.match(/CHECK_SSH_All_Sites_(\d{8})_(\d{6})\.csv$/);
+      if (!match) {
+        return "Unknown";
+      }
+
+      const [, date, time] = match;
+      return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)} ${time.slice(0, 2)}:${time.slice(2, 4)}:${time.slice(4, 6)}`;
+    }
+
+    function renderStatus(rows) {
+      const reachable = rows.filter((row) => row.Status?.toLowerCase() === "reachable").length;
+      const open = rows.filter((row) => row.SSH_Port_22?.toLowerCase() === "open").length;
+      const sites = new Set(rows.map((row) => row.Site).filter(Boolean));
+      const unavailable = rows.length - reachable;
+      const filteredRows = filterStatusRows(rows);
+
+      statusSummaryEl.innerHTML = `
+        <article class="metric">
+          <span>Total Devices</span>
+          <strong>${rows.length}</strong>
+        </article>
+        <article class="metric">
+          <span>Reachable</span>
+          <strong>${reachable}</strong>
+        </article>
+        <article class="metric">
+          <span>Unavailable</span>
+          <strong>${unavailable}</strong>
+        </article>
+        <article class="metric">
+          <span>Open SSH</span>
+          <strong>${open}</strong>
+        </article>
+        <article class="metric">
+          <span>Sites</span>
+          <strong>${sites.size}</strong>
+        </article>
+        <article class="metric">
+          <span>Last Check</span>
+          <strong>${formatStatusFileDate(statusFile)}</strong>
+        </article>
+      `;
+
+      statusFiltersEl.hidden = false;
+
+      const tableRows = filteredRows.map((row) => {
+        const rowClass = isReachable(row) ? "" : ' class="status-row-down"';
+
+        return `
+          <tr${rowClass}>
+            <td>${escapeHtml(row.Device)}</td>
+            <td>${escapeHtml(row.IP_Address)}</td>
+            <td>${escapeHtml(row.Site)}</td>
+            <td>${escapeHtml(row.Device_Type)}</td>
+            <td>${escapeHtml(row.SSH_Port_22)}</td>
+            <td>${escapeHtml(row.Status)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      statusResultsEl.innerHTML = `
+        <p class="status">Showing ${filteredRows.length} of ${rows.length} devices</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>IP Address</th>
+                <th>Site</th>
+                <th>Device Type</th>
+                <th>SSH Port 22</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function showPanel(panelName) {
+      const showingUptime = panelName === "uptime";
+      const showingEndpoints = panelName === "endpoints";
+
+      statusPanelEl.classList.remove("visible");
+      uptimePanelEl.classList.toggle("visible", showingUptime);
+      endpointsPanelEl.classList.toggle("visible", showingEndpoints);
+      statusButtonEl.classList.remove("active");
+      uptimeButtonEl.classList.toggle("active", showingUptime);
+      endpointsButtonEl.classList.toggle("active", showingEndpoints);
+      uptimeButtonEl.setAttribute("aria-pressed", String(showingUptime));
+      endpointsButtonEl.setAttribute("aria-pressed", String(showingEndpoints));
+
+      if (showingUptime || showingEndpoints) {
+        const panel = showingUptime ? uptimePanelEl : endpointsPanelEl;
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    async function loadStatus() {
+      showPanel("status");
+      statusSummaryEl.innerHTML = "";
+      statusFiltersEl.hidden = true;
+      statusResultsEl.innerHTML = '<div class="empty">Loading SSH status...</div>';
+
+      try {
+        const response = await fetch(statusFile, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Could not load ${statusFile} (${response.status})`);
+        }
+        sshStatusRows = parseCsv(await response.text());
+        renderStatus(sshStatusRows);
+      } catch (error) {
+        statusResultsEl.innerHTML = '<div class="error">Unable to load the SSH status file from /polaris/data.</div>';
+        console.error(error);
+      }
+    }
+
+    async function loadUptime() {
+      showPanel("uptime");
+      uptimeResultsEl.innerHTML = '<div class="empty">Loading uptime data...</div>';
+
+      if (uptimeRows.length > 0) {
+        renderUptimeResults();
+        return;
+      }
+
+      try {
+        const manifest = await getOperationsManifest();
+        const uptimeFiles = Object.values(manifest.uptime || {});
+        const rowGroups = await Promise.all(uptimeFiles.map(async (filePath) => {
+          const response = await fetch(filePath, { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`Could not load ${filePath} (${response.status})`);
+          }
+
+          return normalizeUptimeRows(parseCsv(await response.text()));
+        }));
+
+        uptimeRows = rowGroups.flat().sort((a, b) => siteSorter.compare(a.site, b.site) || a.device.localeCompare(b.device));
+        renderUptimeResults();
+      } catch (error) {
+        uptimeResultsEl.innerHTML = '<div class="error">Unable to load uptime data from /polaris/data.</div>';
+        console.error(error);
+      }
+    }
+
+    async function loadEndpoints() {
+      showPanel("endpoints");
+      endpointsResultsEl.innerHTML = '<div class="empty">Loading endpoints data...</div>';
+
+      if (endpointRows.length > 0) {
+        renderEndpointResults();
+        return;
+      }
+
+      try {
+        const data = await getEndpointsData();
+        endpointRows = sortEndpointRows(normalizeEndpointRows(data.endpoints || []));
+        renderEndpointResults();
+      } catch (error) {
+        endpointsResultsEl.innerHTML = '<div class="error">Unable to load endpoints data from /polaris/data.</div>';
+        console.error(error);
+      }
+    }
+
+    async function loadSites() {
+      try {
+        const response = await fetch(inventoryFile, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Could not load ${inventoryFile} (${response.status})`);
+        }
+        const data = await response.json();
+        allSites = normalizeSites(data.devices || []);
+        renderSites();
+        loadEndpointFirstSeenMetadata();
+      } catch (error) {
+        statusEl.textContent = "Unable to load site IDs.";
+        sitesEl.innerHTML = '<div class="error">Start the Polaris server with python3 serve_polaris.py so the page can read inventory.db.</div>';
+        console.error(error);
+      }
+    }
+
+    statusFiltersEl.addEventListener("click", (event) => {
+      const button = event.target.closest(".filter-button");
+      if (!button) {
+        return;
+      }
+
+      sshStatusFilter = button.dataset.filter;
+      statusFiltersEl.querySelectorAll(".filter-button").forEach((filterButton) => {
+        filterButton.classList.toggle("active", filterButton === button);
+      });
+      renderStatus(sshStatusRows);
+    });
+    siteSearchEl.addEventListener("input", () => {
+      renderSites();
+
+      if (sshStatusRows.length > 0 && statusPanelEl.classList.contains("visible")) {
+        renderStatus(sshStatusRows);
+      }
+    });
+    uptimeSearchEl.addEventListener("input", renderUptimeResults);
+    endpointsSearchEl.addEventListener("input", renderEndpointResults);
+    loadSites();
+  </script>
+</body>
+</html>
