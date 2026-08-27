@@ -88,6 +88,14 @@ INVENTORY_COLUMNS = """
 """
 
 
+def column_names(column_list):
+    return [
+        column.strip()
+        for column in column_list.strip().split(",")
+        if column.strip()
+    ]
+
+
 def read_endpoint_rows(site_filter=""):
     if not DB_PATH.exists():
         raise FileNotFoundError(f"Database not found: {DB_PATH}")
@@ -124,27 +132,61 @@ def read_inventory_rows(site_filter=""):
     if not INVENTORY_DB_PATH.exists():
         raise FileNotFoundError(f"Database not found: {INVENTORY_DB_PATH}")
 
-    where_clause = ""
-    params = []
-    if site_filter:
-        where_clause = "WHERE site = ?"
-        params.append(site_filter)
-
     with sqlite3.connect(INVENTORY_DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(f"""
-            SELECT {INVENTORY_COLUMNS}
-            FROM devices
-            {where_clause}
-            ORDER BY site, fqdn, ip_address
-        """, params).fetchall()
-        imported_at = conn.execute(f"""
-            SELECT COALESCE(MAX(NULLIF(imported_at, '')), '') AS imported_at
-            FROM devices
-            {where_clause}
-        """, params).fetchone()["imported_at"]
+        available_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(devices)").fetchall()
+        }
+        expected_columns = column_names(INVENTORY_COLUMNS)
+        selected_columns = [
+            column
+            for column in expected_columns
+            if column in available_columns
+        ]
 
-    return [dict(row) for row in rows], imported_at or ""
+        if not selected_columns:
+            return [], ""
+
+        where_clause = ""
+        params = []
+        if site_filter:
+            if "site" not in available_columns:
+                return [], ""
+            where_clause = "WHERE site = ?"
+            params.append(site_filter)
+
+        order_columns = [
+            column
+            for column in ("site", "fqdn", "ip_address")
+            if column in available_columns
+        ]
+        order_clause = f"ORDER BY {', '.join(order_columns)}" if order_columns else ""
+
+        rows = conn.execute(f"""
+            SELECT {", ".join(selected_columns)}
+            FROM devices
+            {where_clause}
+            {order_clause}
+        """, params).fetchall()
+
+        if "imported_at" in available_columns:
+            imported_at = conn.execute(f"""
+                SELECT COALESCE(MAX(NULLIF(imported_at, '')), '') AS imported_at
+                FROM devices
+                {where_clause}
+            """, params).fetchone()["imported_at"]
+        else:
+            imported_at = ""
+
+    normalized_rows = []
+    for row in rows:
+        normalized_row = dict(row)
+        for column in expected_columns:
+            normalized_row.setdefault(column, "")
+        normalized_rows.append(normalized_row)
+
+    return normalized_rows, imported_at or ""
 
 
 def safe_site_id(site):
