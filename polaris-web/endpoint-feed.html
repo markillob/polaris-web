@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Polaris endpoint_feed</title>
+  <title>Polaris feed</title>
   <style>
     :root {
       color-scheme: light;
@@ -327,7 +327,7 @@
 
     <section class="hero" aria-labelledby="page-title">
       <p class="eyebrow">Endpoint Database</p>
-      <h1 id="page-title">endpoint_feed</h1>
+      <h1 id="page-title">feed</h1>
     </section>
 
     <section class="summary-grid" id="feed-summary"></section>
@@ -337,7 +337,7 @@
       </select>
       <input class="search-input" type="search" id="feed-search" placeholder="Search visible endpoints by site, network device, endpoint IP, MAC, VLAN, hostname, or status" autocomplete="off">
     </section>
-    <p class="status" id="feed-message">Loading endpoint_feed from enterprise_endpoints.db...</p>
+    <p class="status" id="feed-message">Loading feed from enterprise_endpoints.db...</p>
     <section class="feed" id="feed-results"></section>
     <section class="info-actions" id="feed-snapshot-info" aria-label="Snapshot information"></section>
   </main>
@@ -507,8 +507,8 @@
       renderSummary();
       const weeks = visibleWeeks();
       if (weeks.length === 0) {
-        feedMessageEl.textContent = "No endpoint_feed weeks match the current site filter.";
-        feedResultsEl.innerHTML = '<div class="empty">No endpoint feed data found.</div>';
+        feedMessageEl.textContent = "No feed weeks match the current site filter.";
+        feedResultsEl.innerHTML = '<div class="empty">No feed data found.</div>';
         return;
       }
 
@@ -552,7 +552,7 @@
         `;
       }).join("");
 
-      feedMessageEl.textContent = `Showing ${weeks.length} endpoint_feed week${weeks.length === 1 ? "" : "s"}${selectedSite ? ` for site ${selectedSite}` : ""}`;
+      feedMessageEl.textContent = `Showing ${weeks.length} feed week${weeks.length === 1 ? "" : "s"}${selectedSite ? ` for site ${selectedSite}` : ""}`;
       feedResultsEl.innerHTML = weekHtml;
     }
 
@@ -565,9 +565,9 @@
 
     async function loadFeed() {
       try {
-        const response = await fetch("/api/endpoint_feed", { cache: "no-store" });
+        const response = await fetch("/api/feed", { cache: "no-store" });
         if (!response.ok) {
-          throw new Error(`Could not load endpoint_feed (${response.status})`);
+          throw new Error(`Could not load feed (${response.status})`);
         }
 
         feedData = await response.json();
@@ -580,7 +580,7 @@
       } catch (error) {
         feedSummaryEl.innerHTML = "";
         feedSnapshotInfoEl.innerHTML = "";
-        feedMessageEl.textContent = "Unable to load endpoint_feed.";
+        feedMessageEl.textContent = "Unable to load feed.";
         feedResultsEl.innerHTML = '<div class="error">Start the Polaris Flask server with python3 serve_polaris.py so the page can read enterprise_endpoints.db.</div>';
         console.error(error);
       }

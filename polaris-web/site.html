@@ -205,6 +205,28 @@
       outline: none;
     }
 
+    .wireless-floorplan {
+      margin-bottom: 16px;
+    }
+
+    .wireless-floorplan img {
+      width: 100%;
+      max-height: 720px;
+      display: block;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: #ffffff;
+      object-fit: contain;
+    }
+
+    .wireless-sub-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+
     .operation-panel {
       margin-bottom: 28px;
     }
@@ -220,15 +242,21 @@
 
     .secondary-button {
       min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       padding: 0 14px;
       border: 1px solid #8a94a6;
       border-radius: 8px;
+      appearance: none;
       background: #ffffff;
       color: #344054;
       cursor: pointer;
       font: inherit;
       font-size: 14px;
       font-weight: 800;
+      line-height: 1;
+      text-decoration: none;
     }
 
     .secondary-button:hover,
@@ -259,12 +287,86 @@
       outline: 3px solid rgba(36, 104, 242, 0.14);
     }
 
+    .vlan-filter-panel {
+      margin: 0 0 18px;
+      padding: 14px;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .vlan-filter-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .vlan-filter-title {
+      margin: 0;
+      color: #39445a;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .vlan-filter-actions,
+    .vlan-filter-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .vlan-filter-options {
+      max-height: 150px;
+      overflow: auto;
+    }
+
+    .vlan-option {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      border: 1px solid #8a94a6;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #344054;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .vlan-option:hover,
+    .vlan-option:focus-within {
+      border-color: #2468f2;
+      color: #2468f2;
+    }
+
+    .vlan-option input {
+      margin: 0 6px 0 0;
+    }
+
+    .vlan-option:has(input:checked) {
+      border-color: #2468f2;
+      background: #2468f2;
+      color: #ffffff;
+    }
+
     .upload-form {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 10px;
       margin: 0 0 14px;
+    }
+
+    .upload-form[hidden],
+    [hidden] {
+      display: none !important;
     }
 
     .file-input {
@@ -454,6 +556,34 @@
       text-transform: uppercase;
     }
 
+    .sort-button {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      letter-spacing: inherit;
+      text-align: left;
+      text-transform: inherit;
+    }
+
+    .sort-button:focus-visible {
+      outline: 3px solid rgba(36, 104, 242, 0.22);
+      outline-offset: 2px;
+    }
+
+    .sort-indicator {
+      color: #667080;
+      font-size: 11px;
+    }
+
     tr:last-child td {
       border-bottom: 0;
     }
@@ -519,20 +649,23 @@
     <section class="operation-actions" aria-label="Site operations">
       <button class="operation-button" type="button" id="uptime-button" aria-pressed="false">device status</button>
       <button class="operation-button" type="button" id="endpoints-button" aria-pressed="false">endpoints</button>
-      <a class="operation-button" href="#" id="endpoint-feed-link">endpoint feed</a>
+      <a class="operation-button" href="#" id="endpoint-feed-link">feed</a>
       <a class="operation-button" href="#" id="routes-link">routes</a>
+      <button class="operation-button" type="button" id="wireless-button" aria-pressed="false">wireless</button>
       <button class="operation-button photos-button" type="button" id="photos-button" aria-pressed="false">photos</button>
     </section>
     <section class="operation-panel" id="operation-panel" aria-live="polite"></section>
 
-    <div class="devices-header">
-      <h2 class="section-title">Devices</h2>
-      <button class="secondary-button" type="button" id="devices-toggle" aria-expanded="true" aria-controls="devices">collapse devices</button>
-    </div>
-    <div class="search-bar">
-      <input class="search-input" type="search" id="device-search" placeholder="Filter devices by name, IP, serial, type, or role" autocomplete="off">
-    </div>
-    <section id="devices"></section>
+    <section id="site-devices-section">
+      <div class="devices-header">
+        <h2 class="section-title">Devices</h2>
+        <button class="secondary-button" type="button" id="devices-toggle" aria-expanded="true" aria-controls="devices">collapse devices</button>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" type="search" id="device-search" placeholder="Filter devices by name, IP, serial, type, or role" autocomplete="off">
+      </div>
+      <section id="devices"></section>
+    </section>
   </main>
 
   <section class="photo-viewer" id="photo-viewer" aria-modal="true" role="dialog" aria-labelledby="photo-viewer-title" hidden>
@@ -556,6 +689,7 @@
     const siteAddressEl = document.getElementById("site-address");
     const statusEl = document.getElementById("status");
     const summaryEl = document.getElementById("summary");
+    const siteDevicesSectionEl = document.getElementById("site-devices-section");
     const devicesEl = document.getElementById("devices");
     const deviceSearchEl = document.getElementById("device-search");
     const devicesToggleEl = document.getElementById("devices-toggle");
@@ -573,24 +707,28 @@
     const endpointsButtonEl = document.getElementById("endpoints-button");
     const endpointFeedLinkEl = document.getElementById("endpoint-feed-link");
     const routesLinkEl = document.getElementById("routes-link");
+    const wirelessButtonEl = document.getElementById("wireless-button");
     const photosButtonEl = document.getElementById("photos-button");
     const siteId = new URLSearchParams(window.location.search).get("site");
     const inventoryFile = "/api/inventory";
     const inventorySourceName = "inventory.db";
-    const operationsDataFile = "/polaris/data/site_operations.json";
     const endpointsFile = "/api/enterprise_endpoints";
     const endpointsSourceName = "enterprise_endpoints.db";
     const photosFile = "/api/site_photos";
-    let operationsData = null;
+    const wirelessFloorplanFile = "/api/wireless_floorplan";
     let endpointsData = null;
     let currentUptimeRows = [];
     let currentUptimeColumns = [];
     let currentUptimeFile = "";
     let currentUptimeUpdated = "";
+    let currentUptimeSort = { key: "device", direction: "asc" };
+    let inventoryImportedAt = "";
     let currentEndpointRows = [];
     let currentEndpointVisibleRows = [];
     let currentEndpointColumns = [];
     let currentEndpointUpdated = "";
+    let currentEndpointAvailableVlans = [];
+    let currentEndpointSelectedVlans = new Set();
     let currentPhotoList = [];
     let currentPhotoIndex = 0;
     let photoTouchStartX = 0;
@@ -611,11 +749,25 @@
       serial: "serialNumber",
       serialnumber: "serialNumber",
       serial_number: "serialNumber",
-      uptime: "uptime",
-      code: "codeVersion",
-      codeversion: "codeVersion",
-      code_version: "codeVersion",
-      version: "codeVersion"
+      type: "deviceType",
+      devicetype: "deviceType",
+      device_type: "deviceType",
+      role: "deviceRole",
+      devicerole: "deviceRole",
+      device_role: "deviceRole",
+      model: "deviceModel",
+      devicemodel: "deviceModel",
+      device_model: "deviceModel",
+      os: "osVersion",
+      version: "osVersion",
+      osversion: "osVersion",
+      os_version: "osVersion",
+      ha: "haStatus",
+      hastatus: "haStatus",
+      ha_status: "haStatus",
+      address: "physicalAddress",
+      physicaladdress: "physicalAddress",
+      physical_address: "physicalAddress"
     };
     const endpointColumnAliases = {
       device: "device",
@@ -652,6 +804,14 @@
         serialNumber: row.serial_number || "-",
         deviceType: row.device_type || "-",
         deviceRole: row.device_role || "-",
+        deviceModel: row.device_model || "-",
+        osVersion: row.os_version || "-",
+        techRoom: row.tech_room || "-",
+        haStatus: row.ha_status || row.ha || "-",
+        location: row.location || "-",
+        access: row.access || "-",
+        tag: row.tag || "-",
+        tags: row.tags || "-",
         physicalAddress: normalizePhysicalAddress(row)
       }));
     }
@@ -687,6 +847,10 @@
       return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
     }
 
+    function googleMapsEmbedUrl(address) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+    }
+
     function renderSiteAddress(devices) {
       const address = firstPhysicalAddress(devices);
       siteAddressEl.hidden = !address;
@@ -695,24 +859,96 @@
         : "";
     }
 
-    function renderSummary(devices) {
+    function endpointSummaryMetrics(rows) {
+      const vlans = new Set();
+      const macs = new Set();
+
+      for (const row of rows) {
+        const vlan = String(row.vlan || "").trim();
+        const mac = String(row.entryMac || "").trim().toLowerCase();
+
+        if (vlan && vlan !== "-") {
+          vlans.add(vlan);
+        }
+
+        if (mac && mac !== "-") {
+          macs.add(mac);
+        }
+      }
+
+      return {
+        endpointCount: rows.length,
+        vlanCount: vlans.size,
+        macCount: macs.size
+      };
+    }
+
+    function updateEndpointsButton(metrics = null) {
+      endpointsButtonEl.textContent = metrics ? `endpoints(${metrics.endpointCount})` : "endpoints";
+    }
+
+    function updateDeviceStatusButton(devices = null) {
+      if (!Array.isArray(devices)) {
+        uptimeButtonEl.textContent = "device status";
+        return;
+      }
+
+      uptimeButtonEl.textContent = `device status(${devices.length})`;
+    }
+
+    function isAccessPointDevice(device) {
+      return String(device.deviceType || "").trim().toLowerCase() === "access_point";
+    }
+
+    function updateWirelessButton(devices = null) {
+      if (!Array.isArray(devices)) {
+        wirelessButtonEl.textContent = "wireless";
+        return;
+      }
+
+      wirelessButtonEl.textContent = `wireless(${devices.filter(isAccessPointDevice).length})`;
+    }
+
+    function renderSummary(devices, endpoints = null) {
       const deviceTypes = new Set(devices.map((device) => device.deviceType).filter((type) => type !== "-"));
       const gatewayCount = devices.filter((device) => device.deviceRole.toLowerCase().includes("gateway")).length;
+      const endpointMetrics = Array.isArray(endpoints) ? endpointSummaryMetrics(endpoints) : null;
+      const endpointSummary = endpointMetrics ? `
+        <article class="metric">
+          <span>endpoint vlans</span>
+          <strong><a class="metric-link" href="/vlans?site=${encodeURIComponent(siteId)}">${endpointMetrics.vlanCount}</a></strong>
+        </article>
+        <article class="metric">
+          <span>endpoint mac addresses</span>
+          <strong>${endpointMetrics.macCount}</strong>
+        </article>
+      ` : "";
 
       summaryEl.innerHTML = `
         <article class="metric">
-          <span>Total Devices</span>
+          <span>network devices</span>
           <strong>${devices.length}</strong>
         </article>
         <article class="metric">
-          <span>Device Types</span>
+          <span>device types</span>
           <strong>${deviceTypes.size}</strong>
         </article>
         <article class="metric">
-          <span>L3 Gateways</span>
+          <span>l3 gateways</span>
           <strong>${gatewayCount}</strong>
         </article>
+        ${endpointSummary}
       `;
+    }
+
+    async function loadSiteEndpointSummary() {
+      const response = await fetch(`${endpointsFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Could not load ${endpointsFile} (${response.status})`);
+      }
+
+      const data = await response.json();
+      return normalizeEndpointRows(data.endpoints || []);
     }
 
     function deviceMatchesQuery(device, query) {
@@ -784,51 +1020,6 @@
       devicesToggleEl.setAttribute("aria-expanded", String(expanded));
     }
 
-    function parseCsv(text) {
-      const rows = [];
-      let row = [];
-      let field = "";
-      let inQuotes = false;
-
-      for (let index = 0; index < text.length; index += 1) {
-        const character = text[index];
-        const nextCharacter = text[index + 1];
-
-        if (character === '"' && inQuotes && nextCharacter === '"') {
-          field += '"';
-          index += 1;
-        } else if (character === '"') {
-          inQuotes = !inQuotes;
-        } else if (character === "," && !inQuotes) {
-          row.push(field);
-          field = "";
-        } else if ((character === "\n" || character === "\r") && !inQuotes) {
-          if (character === "\r" && nextCharacter === "\n") {
-            index += 1;
-          }
-          row.push(field);
-          if (row.some((value) => value.trim() !== "")) {
-            rows.push(row);
-          }
-          row = [];
-          field = "";
-        } else {
-          field += character;
-        }
-      }
-
-      row.push(field);
-      if (row.some((value) => value.trim() !== "")) {
-        rows.push(row);
-      }
-
-      const headers = rows.shift() || [];
-      return rows.map((columns) => Object.fromEntries(headers.map((header, index) => [
-        header,
-        columns[index]?.trim() || ""
-      ])));
-    }
-
     function getFirstValue(row, keys) {
       for (const key of keys) {
         const value = row[key];
@@ -838,39 +1029,6 @@
       }
 
       return "-";
-    }
-
-    function formatFileName(path) {
-      return path.split("/").pop() || path;
-    }
-
-    async function getOperationsData() {
-      if (operationsData) {
-        return operationsData;
-      }
-
-      const response = await fetch(operationsDataFile, { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error(`Could not load ${operationsDataFile} (${response.status})`);
-      }
-
-      operationsData = await response.json();
-      return operationsData;
-    }
-
-    function normalizeUptimeRows(rows) {
-      return rows
-        .filter((row) => String(getFirstValue(row, ["Site", "site"])) === siteId)
-        .map((row) => ({
-          site: getFirstValue(row, ["Site", "site"]),
-          device: getFirstValue(row, ["FQDN", "fqdn", "Device", "device"]),
-          techRoom: getFirstValue(row, ["Tech_Room", "tech_room", "Tech Room", "techRoom"]),
-          ipAddress: getFirstValue(row, ["IP_Address", "ip_address"]),
-          member: getFirstValue(row, ["Member", "member"]),
-          serialNumber: getFirstValue(row, ["Serial_Number", "Member_Serial", "serial_number"]),
-          uptime: getFirstValue(row, ["Uptime", "Member_Uptime", "uptime"]),
-          codeVersion: getFirstValue(row, ["Code_Version", "code_version", "Code Version", "codeVersion"])
-        }));
     }
 
     function normalizeEndpointRows(rows) {
@@ -914,6 +1072,42 @@
         a.device.localeCompare(b.device) ||
         a.hostname.localeCompare(b.hostname)
       ));
+    }
+
+    function endpointVlanKey(value) {
+      const normalized = String(value || "").trim();
+      return normalized && normalized !== "-" ? normalized : "-";
+    }
+
+    function buildEndpointVlans(rows) {
+      return [...new Set(rows.map((row) => endpointVlanKey(row.vlan)))]
+        .sort((a, b) => vlanSortValue(a) - vlanSortValue(b) || siteSorter.compare(a, b));
+    }
+
+    function endpointRowMatchesVlanSelection(row) {
+      if (currentEndpointSelectedVlans.size === 0) {
+        return false;
+      }
+
+      return currentEndpointSelectedVlans.has(endpointVlanKey(row.vlan));
+    }
+
+    function renderEndpointVlanFilters() {
+      const panel = document.getElementById("endpoint-vlan-filter-panel");
+      const options = document.getElementById("endpoint-vlan-filter-options");
+      if (!panel || !options) {
+        return;
+      }
+
+      currentEndpointAvailableVlans = buildEndpointVlans(currentEndpointRows);
+      currentEndpointSelectedVlans = new Set(currentEndpointAvailableVlans);
+      panel.hidden = currentEndpointAvailableVlans.length === 0;
+      options.innerHTML = currentEndpointAvailableVlans.map((vlan) => `
+        <label class="vlan-option">
+          <input type="checkbox" value="${escapeHtml(vlan)}" checked>
+          vlan ${escapeHtml(vlan)}
+        </label>
+      `).join("");
     }
 
     function normalizeSearchKey(value) {
@@ -970,31 +1164,94 @@
       return tokens.every((token) => rowMatchesToken(row, token, columns, aliases));
     }
 
+    function uptimeSortValue(row, key) {
+      const value = row[key] ?? "";
+      if (key !== "uptime") {
+        return String(value);
+      }
+
+      const text = String(value).toLowerCase();
+      let seconds = 0;
+      const units = {
+        week: 604800,
+        weeks: 604800,
+        day: 86400,
+        days: 86400,
+        hour: 3600,
+        hours: 3600,
+        hr: 3600,
+        hrs: 3600,
+        minute: 60,
+        minutes: 60,
+        min: 60,
+        mins: 60
+      };
+      for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*([a-z]+)/g)) {
+        seconds += Number(match[1]) * (units[match[2]] || 0);
+      }
+
+      return seconds || text;
+    }
+
+    function compareUptimeValues(left, right, key) {
+      const leftValue = uptimeSortValue(left, key);
+      const rightValue = uptimeSortValue(right, key);
+
+      if (typeof leftValue === "number" && typeof rightValue === "number") {
+        return leftValue - rightValue;
+      }
+
+      return siteSorter.compare(String(leftValue), String(rightValue));
+    }
+
+    function sortedUptimeRows(rows) {
+      const direction = currentUptimeSort.direction === "desc" ? -1 : 1;
+      return [...rows].sort((left, right) => {
+        const primary = compareUptimeValues(left, right, currentUptimeSort.key);
+        const secondary = siteSorter.compare(left.device, right.device);
+        return (primary || secondary) * direction;
+      });
+    }
+
+    function uptimeSortIndicator(column) {
+      if (column.key !== currentUptimeSort.key) {
+        return "";
+      }
+
+      return currentUptimeSort.direction === "asc" ? "asc" : "desc";
+    }
+
     function renderUptimeResults() {
       const searchEl = document.getElementById("uptime-search");
       const query = searchEl ? searchEl.value.trim() : "";
-      const visibleRows = currentUptimeRows.filter((row) => rowMatchesQuery(row, query, currentUptimeColumns, uptimeColumnAliases));
+      const visibleRows = sortedUptimeRows(currentUptimeRows.filter((row) => rowMatchesQuery(row, query, currentUptimeColumns, uptimeColumnAliases)));
       const countLabel = query
-        ? `Showing ${visibleRows.length} of ${currentUptimeRows.length} uptime records`
-        : `Showing ${currentUptimeRows.length} uptime records`;
+        ? `Showing ${visibleRows.length} of ${currentUptimeRows.length} network devices`
+        : `Showing ${currentUptimeRows.length} network devices`;
       const resultEl = document.getElementById("uptime-results");
       const countEl = document.getElementById("uptime-count");
 
       if (countEl) {
-        countEl.textContent = `${countLabel} for site ${siteId} from ${formatFileName(currentUptimeFile)}${currentUptimeUpdated}`;
+        countEl.textContent = `${countLabel} for site ${siteId} from ${currentUptimeFile}${currentUptimeUpdated}`;
       }
 
       if (resultEl) {
-        resultEl.innerHTML = renderTable(visibleRows, currentUptimeColumns);
+        resultEl.innerHTML = renderTable(visibleRows, currentUptimeColumns, {
+          sortable: true,
+          sortPrefix: "uptime",
+          sortIndicator: uptimeSortIndicator
+        });
       }
     }
 
     function renderEndpointResults() {
       const searchEl = document.getElementById("endpoint-search");
       const query = searchEl ? searchEl.value.trim() : "";
-      const visibleRows = currentEndpointRows.filter((row) => rowMatchesQuery(row, query, currentEndpointColumns, endpointColumnAliases));
+      const searchRows = currentEndpointRows.filter((row) => rowMatchesQuery(row, query, currentEndpointColumns, endpointColumnAliases));
+      const visibleRows = searchRows.filter(endpointRowMatchesVlanSelection);
       currentEndpointVisibleRows = visibleRows;
-      const countLabel = query
+      const filterActive = endpointFiltersActive();
+      const countLabel = query || filterActive
         ? `Showing ${visibleRows.length} of ${currentEndpointRows.length} endpoints`
         : `Showing ${currentEndpointRows.length} endpoints`;
       const resultEl = document.getElementById("endpoint-results");
@@ -1014,13 +1271,17 @@
       }
     }
 
+    function endpointFiltersActive() {
+      const searchEl = document.getElementById("endpoint-search");
+      return Boolean(searchEl?.value.trim()) || currentEndpointSelectedVlans.size !== currentEndpointAvailableVlans.length;
+    }
+
     function csvEscape(value) {
       const text = String(value ?? "");
       return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
     }
 
-    function exportEndpointCsv() {
-      const rows = currentEndpointVisibleRows.length ? currentEndpointVisibleRows : currentEndpointRows;
+    function exportEndpointCsv(rows, scope) {
       if (rows.length === 0) {
         return;
       }
@@ -1034,11 +1295,16 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `polaris_site_${siteId}_endpoints.csv`;
+      link.download = `site_${siteId}_endpoints_${scope}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+    }
+
+    function exportCurrentEndpointCsv() {
+      const filtered = endpointFiltersActive();
+      exportEndpointCsv(filtered ? currentEndpointVisibleRows : currentEndpointRows, filtered ? "filtered" : "all");
     }
 
     function renderEndpointSummary(rows) {
@@ -1080,12 +1346,25 @@
       `;
     }
 
-    function renderTable(rows, columns) {
+    function renderTable(rows, columns, options = {}) {
       if (rows.length === 0) {
         return '<div class="empty">No records found in this file for the selected site.</div>';
       }
 
-      const headers = columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
+      const headers = columns.map((column) => {
+        if (!options.sortable) {
+          return `<th>${escapeHtml(column.label)}</th>`;
+        }
+
+        return `
+          <th>
+            <button class="sort-button" type="button" data-${options.sortPrefix}-sort="${escapeHtml(column.key)}">
+              <span>${escapeHtml(column.label)}</span>
+              <span class="sort-indicator">${escapeHtml(options.sortIndicator(column))}</span>
+            </button>
+          </th>
+        `;
+      }).join("");
       const body = rows.map((row) => `
         <tr>
           ${columns.map((column) => `<td>${escapeHtml(row[column.key])}</td>`).join("")}
@@ -1107,14 +1386,18 @@
     function setActiveOperation(kind) {
       const showingUptime = kind === "uptime";
       const showingEndpoints = kind === "endpoints";
+      const showingWireless = kind === "wireless";
       const showingPhotos = kind === "photos";
 
       uptimeButtonEl.classList.toggle("active", showingUptime);
       endpointsButtonEl.classList.toggle("active", showingEndpoints);
+      wirelessButtonEl.classList.toggle("active", showingWireless);
       photosButtonEl.classList.toggle("active", showingPhotos);
       uptimeButtonEl.setAttribute("aria-pressed", String(showingUptime));
       endpointsButtonEl.setAttribute("aria-pressed", String(showingEndpoints));
+      wirelessButtonEl.setAttribute("aria-pressed", String(showingWireless));
       photosButtonEl.setAttribute("aria-pressed", String(showingPhotos));
+      siteDevicesSectionEl.hidden = showingWireless || showingEndpoints;
     }
 
     function submenuHeader(title) {
@@ -1147,37 +1430,59 @@
       return endpointsData;
     }
 
-    async function loadUptime() {
+    function loadUptime() {
       setActiveOperation("uptime");
-      operationPanelEl.innerHTML = '<div class="empty">Loading Device Status data...</div>';
+      currentUptimeFile = inventorySourceName;
+      currentUptimeUpdated = inventoryImportedAt ? `, imported ${inventoryImportedAt}` : "";
+      currentUptimeRows = siteDevices.map((device) => ({
+        device: device.fqdn,
+        ipAddress: device.ipAddress,
+        techRoom: device.techRoom,
+        serialNumber: device.serialNumber,
+        deviceType: device.deviceType,
+        deviceRole: device.deviceRole,
+        deviceModel: device.deviceModel,
+        osVersion: device.osVersion,
+        haStatus: device.haStatus,
+        physicalAddress: device.physicalAddress
+      }));
+      currentUptimeSort = { key: "device", direction: "asc" };
+      currentUptimeColumns = [
+        { key: "device", label: "Device" },
+        { key: "ipAddress", label: "IP Address" },
+        { key: "techRoom", label: "Tech Room" },
+        { key: "serialNumber", label: "Serial Number" },
+        { key: "deviceType", label: "device_type" },
+        { key: "deviceRole", label: "device_role" },
+        { key: "deviceModel", label: "device_model" },
+        { key: "osVersion", label: "os_version" },
+        { key: "haStatus", label: "ha_status" },
+        { key: "physicalAddress", label: "physical_address" }
+      ];
 
-      try {
-        const data = await getOperationsData();
-        currentUptimeFile = operationsDataFile;
-        currentUptimeUpdated = data.last_updated ? `, updated ${data.last_updated}` : "";
-        currentUptimeRows = normalizeUptimeRows(data.records || []);
-        currentUptimeColumns = [
-          { key: "device", label: "Device" },
-          { key: "techRoom", label: "Tech Room" },
-          { key: "serialNumber", label: "Serial Number" },
-          { key: "uptime", label: "uptime" },
-          { key: "codeVersion", label: "code_version" }
-        ];
+      operationPanelEl.innerHTML = `
+        ${submenuHeader("Device Status")}
+        <div class="search-bar">
+          <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like device:core serial:VN56 type:access_point role:l2" autocomplete="off">
+        </div>
+        <p class="status" id="uptime-count"></p>
+        <div id="uptime-results"></div>
+      `;
+      document.getElementById("uptime-search").addEventListener("input", renderUptimeResults);
+      document.getElementById("uptime-results").addEventListener("click", (event) => {
+        const sortButton = event.target.closest("[data-uptime-sort]");
+        if (!sortButton) {
+          return;
+        }
 
-        operationPanelEl.innerHTML = `
-          ${submenuHeader("Device Status")}
-          <div class="search-bar">
-            <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like device:core serial:VN56 uptime:weeks code:17" autocomplete="off">
-          </div>
-          <p class="status" id="uptime-count"></p>
-          <div id="uptime-results"></div>
-        `;
-        document.getElementById("uptime-search").addEventListener("input", renderUptimeResults);
+        const key = sortButton.dataset.uptimeSort;
+        currentUptimeSort = {
+          key,
+          direction: currentUptimeSort.key === key && currentUptimeSort.direction === "asc" ? "desc" : "asc"
+        };
         renderUptimeResults();
-      } catch (error) {
-        operationPanelEl.innerHTML = '<div class="error">Unable to load Device Status data for this site.</div>';
-        console.error(error);
-      }
+      });
+      renderUptimeResults();
     }
 
     async function loadEndpoints() {
@@ -1207,17 +1512,291 @@
             </div>
             <button class="secondary-button" type="button" id="endpoint-export">export csv</button>
           </div>
+          <section class="vlan-filter-panel" id="endpoint-vlan-filter-panel" aria-label="VLAN filter" hidden>
+            <div class="vlan-filter-header">
+              <p class="vlan-filter-title">vlans</p>
+              <div class="vlan-filter-actions">
+                <button class="secondary-button" type="button" id="endpoint-vlan-select-all">select all</button>
+                <button class="secondary-button" type="button" id="endpoint-vlan-clear-all">clear all</button>
+              </div>
+            </div>
+            <div class="vlan-filter-options" id="endpoint-vlan-filter-options"></div>
+          </section>
           <p class="status" id="endpoint-count"></p>
           <div id="endpoint-summary"></div>
           <div id="endpoint-results"></div>
         `;
+        renderEndpointVlanFilters();
         document.getElementById("endpoint-search").addEventListener("input", renderEndpointResults);
-        document.getElementById("endpoint-export").addEventListener("click", exportEndpointCsv);
+        document.getElementById("endpoint-export").addEventListener("click", exportCurrentEndpointCsv);
+        document.getElementById("endpoint-vlan-filter-options").addEventListener("change", (event) => {
+          if (!event.target.matches('input[type="checkbox"]')) {
+            return;
+          }
+
+          currentEndpointSelectedVlans = new Set(
+            [...document.querySelectorAll('#endpoint-vlan-filter-options input[type="checkbox"]:checked')]
+              .map((input) => input.value)
+          );
+          renderEndpointResults();
+        });
+        document.getElementById("endpoint-vlan-select-all").addEventListener("click", () => {
+          currentEndpointSelectedVlans = new Set(currentEndpointAvailableVlans);
+          document.querySelectorAll('#endpoint-vlan-filter-options input[type="checkbox"]').forEach((input) => {
+            input.checked = true;
+          });
+          renderEndpointResults();
+        });
+        document.getElementById("endpoint-vlan-clear-all").addEventListener("click", () => {
+          currentEndpointSelectedVlans.clear();
+          document.querySelectorAll('#endpoint-vlan-filter-options input[type="checkbox"]').forEach((input) => {
+            input.checked = false;
+          });
+          renderEndpointResults();
+        });
         renderEndpointResults();
       } catch (error) {
         operationPanelEl.innerHTML = '<div class="error">Unable to load Endpoints data for this site.</div>';
         console.error(error);
       }
+    }
+
+    function wirelessDeviceMatchesQuery(device, query) {
+      if (!query) {
+        return true;
+      }
+
+      return [
+        device.fqdn,
+        device.ipAddress,
+        device.serialNumber,
+        device.deviceType,
+        device.deviceRole,
+        device.location,
+        device.access,
+        device.tag,
+        device.tags
+      ].some((value) => String(value).toLowerCase().includes(query));
+    }
+
+    function renderWirelessResults() {
+      const searchEl = document.getElementById("wireless-search");
+      const countEl = document.getElementById("wireless-count");
+      const resultsEl = document.getElementById("wireless-results");
+      const query = searchEl?.value.trim().toLowerCase() || "";
+      const wirelessDevices = siteDevices.filter(isAccessPointDevice);
+      const visibleDevices = wirelessDevices.filter((device) => wirelessDeviceMatchesQuery(device, query));
+
+      if (countEl) {
+        countEl.textContent = query
+          ? `Showing ${visibleDevices.length} of ${wirelessDevices.length} wireless devices with device_type access_point from ${inventorySourceName}`
+          : `Showing ${wirelessDevices.length} wireless devices with device_type access_point from ${inventorySourceName}`;
+      }
+
+      if (!resultsEl) {
+        return;
+      }
+
+      if (visibleDevices.length === 0) {
+        resultsEl.innerHTML = wirelessDevices.length === 0
+          ? '<div class="empty">No devices with device_type access_point were found for this site.</div>'
+          : '<div class="empty">No wireless devices match the current filter.</div>';
+        return;
+      }
+
+      const rows = visibleDevices.map((device, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(device.fqdn)}</td>
+          <td>${escapeHtml(device.ipAddress)}</td>
+          <td>${escapeHtml(device.serialNumber)}</td>
+          <td>${escapeHtml(device.deviceType)}</td>
+          <td>${escapeHtml(device.deviceRole)}</td>
+          <td>${escapeHtml(device.location)}</td>
+          <td>${escapeHtml(device.tags !== "-" ? device.tags : device.tag)}</td>
+        </tr>
+      `).join("");
+
+      resultsEl.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>FQDN</th>
+                <th>IP Address</th>
+                <th>Serial Number</th>
+                <th>Device Type</th>
+                <th>Device Role</th>
+                <th>Location</th>
+                <th>Tags</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderWirelessFloorplan(floorplan) {
+      const resultEl = document.getElementById("wireless-floorplan-result");
+      if (!resultEl) {
+        return;
+      }
+
+      if (!floorplan) {
+        resultEl.innerHTML = `<div class="empty">No wireless floorplan uploaded. Upload an image and it will be saved as ${escapeHtml(siteId)}-floorplan01.</div>`;
+        return;
+      }
+
+      resultEl.innerHTML = `
+        <div class="wireless-floorplan">
+          <img src="${escapeHtml(floorplan.url)}" alt="wireless floorplan for site ${escapeHtml(siteId)}">
+        </div>
+      `;
+    }
+
+    async function fetchWirelessFloorplan() {
+      const response = await fetch(`${wirelessFloorplanFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Could not load ${wirelessFloorplanFile} (${response.status})`);
+      }
+
+      return response.json();
+    }
+
+    async function loadWirelessFloorplan() {
+      try {
+        const data = await fetchWirelessFloorplan();
+        renderWirelessFloorplan(data.floorplan || null);
+      } catch (error) {
+        const resultEl = document.getElementById("wireless-floorplan-result");
+        if (resultEl) {
+          resultEl.innerHTML = '<div class="error">Unable to load wireless floorplan.</div>';
+        }
+        console.error(error);
+      }
+    }
+
+    function updateWirelessFloorplanStatus() {
+      const input = document.getElementById("wireless-floorplan-input");
+      const statusEl = document.getElementById("wireless-floorplan-status");
+
+      if (!input || !statusEl) {
+        return;
+      }
+
+      statusEl.textContent = input.files.length
+        ? `selected ${input.files[0].name}; it will be saved as ${siteId}-floorplan01`
+        : "";
+      statusEl.hidden = !statusEl.textContent;
+    }
+
+    function toggleWirelessFloorplanUpload() {
+      const form = document.getElementById("wireless-floorplan-form");
+      const button = document.getElementById("wireless-floorplan-toggle");
+      if (!form || !button) {
+        return;
+      }
+
+      const shouldShow = form.hidden;
+      form.hidden = !shouldShow;
+      button.textContent = shouldShow ? "hide floorplan upload" : "show floorplan upload";
+      button.setAttribute("aria-expanded", String(shouldShow));
+    }
+
+    async function uploadWirelessFloorplan(event) {
+      event.preventDefault();
+      const input = document.getElementById("wireless-floorplan-input");
+      const uploadButton = document.getElementById("wireless-floorplan-upload");
+      const statusEl = document.getElementById("wireless-floorplan-status");
+
+      if (!input.files.length) {
+        if (statusEl) {
+          statusEl.textContent = "select a floorplan image first";
+          statusEl.hidden = false;
+        }
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("site", siteId);
+      formData.append("floorplan", input.files[0]);
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 120000);
+
+      try {
+        if (uploadButton) {
+          uploadButton.disabled = true;
+          uploadButton.textContent = "uploading...";
+        }
+        if (statusEl) {
+          statusEl.textContent = `uploading floorplan as ${siteId}-floorplan01...`;
+          statusEl.hidden = false;
+        }
+
+        const response = await fetch(wirelessFloorplanFile, {
+          method: "POST",
+          body: formData,
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          throw new Error(await responseErrorMessage(response));
+        }
+
+        const data = await response.json();
+        input.value = "";
+        if (statusEl) {
+          statusEl.textContent = `uploaded ${data.floorplan?.filename || `${siteId}-floorplan01`}`;
+          statusEl.hidden = false;
+        }
+        renderWirelessFloorplan(data.floorplan || null);
+      } catch (error) {
+        const message = error.name === "AbortError"
+          ? "upload timed out after 120 seconds"
+          : error.message;
+        if (statusEl) {
+          statusEl.textContent = message;
+          statusEl.hidden = false;
+        }
+        console.error(error);
+      } finally {
+        window.clearTimeout(timeoutId);
+        if (uploadButton) {
+          uploadButton.disabled = false;
+          uploadButton.textContent = "upload floorplan";
+        }
+      }
+    }
+
+    function loadWireless() {
+      setActiveOperation("wireless");
+      operationPanelEl.innerHTML = `
+        ${submenuHeader("wireless")}
+        <div class="wireless-sub-actions">
+          <button class="secondary-button" type="button" id="wireless-floorplan-toggle" aria-expanded="false">show floorplan upload</button>
+          <a class="secondary-button" href="/polaris-web/access_point_photos.html?site=${encodeURIComponent(siteId)}">access_point_photos</a>
+        </div>
+        <form class="upload-form" id="wireless-floorplan-form" action="/api/wireless_floorplan" method="post" enctype="multipart/form-data" hidden>
+          <input type="hidden" name="site" value="${escapeHtml(siteId)}">
+          <input class="file-input" type="file" id="wireless-floorplan-input" name="floorplan" accept="image/*">
+          <button class="secondary-button" type="submit" id="wireless-floorplan-upload">upload floorplan</button>
+        </form>
+        <p class="status" id="wireless-floorplan-status" hidden></p>
+        <div id="wireless-floorplan-result"></div>
+        <div class="search-bar">
+          <input class="search-input" type="search" id="wireless-search" placeholder="Search wireless devices by name, IP, serial, type, role, location, or tags" autocomplete="off">
+        </div>
+        <p class="status" id="wireless-count"></p>
+        <div id="wireless-results"></div>
+      `;
+      document.getElementById("wireless-floorplan-toggle").addEventListener("click", toggleWirelessFloorplanUpload);
+      document.getElementById("wireless-floorplan-form").addEventListener("submit", uploadWirelessFloorplan);
+      document.getElementById("wireless-floorplan-input").addEventListener("change", updateWirelessFloorplanStatus);
+      document.getElementById("wireless-search").addEventListener("input", renderWirelessResults);
+      loadWirelessFloorplan();
+      renderWirelessResults();
     }
 
     function renderPhotos(photos) {
@@ -1430,14 +2009,20 @@
     async function loadSite() {
       if (!siteId) {
         pageTitleEl.textContent = "Site not selected";
+        updateDeviceStatusButton();
+        updateEndpointsButton();
+        updateWirelessButton();
         statusEl.textContent = "Open this page from a site button on the main page.";
         devicesEl.innerHTML = '<div class="error">Missing site ID.</div>';
         return;
       }
 
       pageTitleEl.textContent = `Site ${siteId}`;
+      updateDeviceStatusButton();
+      updateEndpointsButton();
+      updateWirelessButton();
       routesLinkEl.href = `/polaris-web/routes.html?site=${encodeURIComponent(siteId)}`;
-      endpointFeedLinkEl.href = `/endpoint_feed?site=${encodeURIComponent(siteId)}`;
+      endpointFeedLinkEl.href = `/feed?site=${encodeURIComponent(siteId)}`;
 
       try {
         const response = await fetch(`${inventoryFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
@@ -1445,11 +2030,25 @@
           throw new Error(`Could not load ${inventoryFile} (${response.status})`);
         }
 
-        siteDevices = normalizeDevices((await response.json()).devices || []);
+        const inventoryData = await response.json();
+        inventoryImportedAt = inventoryData.imported_at || "";
+        siteDevices = normalizeDevices(inventoryData.devices || []);
+        updateDeviceStatusButton(siteDevices);
+        updateWirelessButton(siteDevices);
         renderSiteAddress(siteDevices);
         renderSummary(siteDevices);
         renderDevices();
+        try {
+          const siteEndpoints = await loadSiteEndpointSummary();
+          updateEndpointsButton(endpointSummaryMetrics(siteEndpoints));
+          renderSummary(siteDevices, siteEndpoints);
+        } catch (summaryError) {
+          updateEndpointsButton();
+          console.error(summaryError);
+        }
       } catch (error) {
+        updateDeviceStatusButton();
+        updateWirelessButton();
         statusEl.textContent = "Unable to load this site.";
         devicesEl.innerHTML = '<div class="error">Start the Polaris server with python3 serve_polaris.py so the page can read inventory.db.</div>';
         console.error(error);
@@ -1458,6 +2057,7 @@
 
     uptimeButtonEl.addEventListener("click", loadUptime);
     endpointsButtonEl.addEventListener("click", loadEndpoints);
+    wirelessButtonEl.addEventListener("click", loadWireless);
     photosButtonEl.addEventListener("click", loadPhotos);
     deviceSearchEl.addEventListener("input", renderDevices);
     devicesToggleEl.addEventListener("click", () => setDevicesExpanded(!devicesExpanded));

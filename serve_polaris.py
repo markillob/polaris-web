@@ -3,6 +3,7 @@ import sqlite3
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
@@ -14,6 +15,7 @@ WEB_ROOT = ROOT / "polaris-web"
 DATA_ROOT = ROOT / "polaris" / "data"
 DB_PATH = DATA_ROOT / "enterprise_endpoints.db"
 INVENTORY_DB_PATH = DATA_ROOT / "inventory.db"
+CONFIG_PATH = DATA_ROOT / "config.yaml"
 PHOTO_ROOT = DATA_ROOT / "site_photos"
 ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
@@ -73,6 +75,8 @@ INVENTORY_COLUMNS = """
     device_type,
     device_role,
     location,
+    tag,
+    tags,
     device_model,
     os_version,
     env_type,
@@ -94,6 +98,79 @@ def column_names(column_list):
         for column in column_list.strip().split(",")
         if column.strip()
     ]
+
+
+def parse_yaml_scalar(value):
+    value = value.strip()
+    if value in {"", "null", "Null", "NULL", "~"}:
+        return ""
+    if value in {"true", "True", "TRUE"}:
+        return True
+    if value in {"false", "False", "FALSE"}:
+        return False
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+        return value[1:-1]
+    return value
+
+
+def parse_simple_yaml(text):
+    root = {}
+    stack = [(-1, root)]
+
+    for raw_line in text.splitlines():
+        if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+            continue
+
+        indent = len(raw_line) - len(raw_line.lstrip(" "))
+        line = raw_line.strip()
+        if ":" not in line:
+            continue
+
+        key, value = line.split(":", 1)
+        key = key.strip()
+        if not key:
+            continue
+
+        while stack and indent <= stack[-1][0]:
+            stack.pop()
+
+        parent = stack[-1][1] if stack else root
+        if value.strip() == "":
+            child = {}
+            parent[key] = child
+            stack.append((indent, child))
+        else:
+            parent[key] = parse_yaml_scalar(value)
+
+    return root
+
+
+def read_config():
+    default_config = {"site_name": {"main_site": "polaris"}}
+    if not CONFIG_PATH.exists():
+        return default_config
+
+    text = CONFIG_PATH.read_text(encoding="utf-8")
+    try:
+        import yaml
+        loaded = yaml.safe_load(text) or {}
+    except ImportError:
+        loaded = parse_simple_yaml(text)
+
+    if not isinstance(loaded, dict):
+        loaded = {}
+
+    site_name = loaded.setdefault("site_name", {})
+    if not isinstance(site_name, dict):
+        site_name = {}
+        loaded["site_name"] = site_name
+    site_name.setdefault("main_site", "polaris")
+    return loaded
+
+
+def main_site_name():
+    config = read_config()
+    return str(config.get("site_name", {}).get("main_site") or "polaris").strip() or "polaris"
 
 
 def read_endpoint_rows(site_filter=""):
@@ -201,7 +278,27 @@ def photo_directory(site):
 
 
 def photo_url(site, filename):
-    return f"/polaris/data/site_photos/{safe_site_id(site)}/{filename}"
+    quoted_filename = quote(str(filename), safe="/")
+    return f"/polaris/data/site_photos/{safe_site_id(site)}/{quoted_filename}"
+
+
+def safe_photo_filename(filename):
+    cleaned = str(filename or "").replace("\\", "/").split("/")[-1].strip()
+    cleaned = "".join(character for character in cleaned if ord(character) >= 32)
+    if not cleaned or cleaned in {".", ".."}:
+        return ""
+    return cleaned
+
+
+def photo_payload(site, path, filename=None):
+    relative_name = filename or path.name
+    return {
+        "filename": Path(relative_name).name,
+        "path": str(relative_name),
+        "url": photo_url(site, str(relative_name)),
+        "size": path.stat().st_size,
+        "modified": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"),
+    }
 
 
 def list_site_photos(site):
@@ -246,6 +343,104 @@ def site_photo_filename(site, original_name):
         return filename
 
     return f"{site_prefix}_{filename}"
+
+
+def floorplan_stem(site):
+    return f"{safe_site_id(site)}-floorplan01"
+
+
+def find_wireless_floorplan(site):
+    directory = photo_directory(site)
+    if not directory.exists():
+        return None
+
+    stem = floorplan_stem(site)
+    matches = sorted(
+        (
+            path
+            for path in directory.iterdir()
+            if path.is_file()
+            and path.stem == stem
+            and path.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS
+        ),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    return matches[0] if matches else None
+
+
+def wireless_floorplan_payload(site):
+    floorplan = find_wireless_floorplan(site)
+    if not floorplan:
+        return None
+
+    return {
+        "filename": floorplan.name,
+        "url": photo_url(site, floorplan.name),
+        "size": floorplan.stat().st_size,
+        "modified": datetime.fromtimestamp(floorplan.stat().st_mtime).isoformat(timespec="seconds"),
+    }
+
+
+def access_point_photo_prefix(site):
+    return f"{safe_site_id(site)}-access_point_"
+
+
+def access_point_photo_directory(site):
+    return photo_directory(site) / "access_point_photos"
+
+
+def access_point_photo_filename(site, original_name):
+    filename = safe_photo_filename(original_name)
+    if not filename:
+        return ""
+
+    return filename
+
+
+def access_point_photo_path(site, filename):
+    cleaned = safe_photo_filename(filename)
+    if not cleaned:
+        abort(400, "Missing filename")
+
+    if Path(cleaned).suffix.lower() not in ALLOWED_PHOTO_EXTENSIONS:
+        abort(400, "Unsupported image file")
+
+    path = access_point_photo_directory(site) / cleaned
+    if not path.exists() or not path.is_file():
+        legacy_path = photo_directory(site) / cleaned
+        prefix = access_point_photo_prefix(site).lower()
+        if (
+            legacy_path.exists()
+            and legacy_path.is_file()
+            and legacy_path.name.lower().startswith(prefix)
+        ):
+            return legacy_path
+        abort(404, "Photo not found")
+
+    return path
+
+
+def list_access_point_photos(site):
+    photos = []
+    directory = access_point_photo_directory(site)
+    if directory.exists():
+        for path in directory.iterdir():
+            if path.is_file() and path.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS:
+                photos.append(photo_payload(site, path, Path("access_point_photos") / path.name))
+
+    legacy_directory = photo_directory(site)
+    prefix = access_point_photo_prefix(site).lower()
+    if legacy_directory.exists():
+        for path in legacy_directory.iterdir():
+            if (
+                path.is_file()
+                and path.name.lower().startswith(prefix)
+                and path.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS
+            ):
+                photos.append(photo_payload(site, path))
+
+    return sorted(photos, key=lambda item: item["modified"], reverse=True)
 
 
 def snapshot_values(rows):
@@ -512,10 +707,21 @@ def root():
     return redirect("/polaris-web/index.html")
 
 
+@app.get("/api/config")
+def app_config():
+    config = read_config()
+    return jsonify({
+        "source": "/polaris/data/config.yaml",
+        "site_name": config.get("site_name", {}),
+        "main_site": main_site_name(),
+        "config": config,
+    })
+
+
 @app.get("/State")
 @app.get("/state")
 def state_page():
-    return redirect("/endpoint_feed")
+    return redirect("/feed")
 
 
 @app.get("/vlans")
@@ -526,18 +732,19 @@ def vlans_page():
 
 @app.get("/endpoint_feed")
 @app.get("/endpoint_feeed")
+@app.get("/feed")
 def endpoint_feed_page():
     return send_from_directory(WEB_ROOT, "endpoint-feed.html")
 
 
 @app.get("/polaris-web/endpoint-diff.html")
 def legacy_endpoint_diff_page():
-    return redirect("/endpoint_feed")
+    return redirect("/feed")
 
 
 @app.get("/polaris-web/state.html")
 def legacy_state_page():
-    return redirect("/endpoint_feed")
+    return redirect("/feed")
 
 
 @app.get("/polaris-web/locations.html")
@@ -587,6 +794,25 @@ def enterprise_endpoints():
 @app.get("/api/network_inventory")
 def inventory():
     site_filter = request.args.get("site", "").strip()
+    try:
+        rows, imported_at = read_inventory_rows(site_filter)
+    except FileNotFoundError as error:
+        abort(404, str(error))
+    except sqlite3.Error as error:
+        abort(500, f"Unable to read inventory.db: {error}")
+
+    return jsonify({
+        "source": "/polaris/data/inventory.db",
+        "site": site_filter,
+        "imported_at": imported_at,
+        "total": len(rows),
+        "devices": rows,
+    })
+
+
+@app.get("/api/<site_id>/devices")
+def site_devices(site_id):
+    site_filter = str(site_id or "").strip()
     try:
         rows, imported_at = read_inventory_rows(site_filter)
     except FileNotFoundError as error:
@@ -672,6 +898,166 @@ def upload_site_photos():
     })
 
 
+@app.get("/api/wireless_floorplan")
+@app.get("/api/wireless-floorplan")
+def wireless_floorplan():
+    site = request.args.get("site", "").strip()
+    safe_site_id(site)
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "floorplan": wireless_floorplan_payload(site),
+    })
+
+
+@app.post("/api/wireless_floorplan")
+@app.post("/api/wireless-floorplan")
+def upload_wireless_floorplan():
+    site = request.form.get("site", "").strip()
+    site_dir = photo_directory(site)
+    file_storage = request.files.get("floorplan")
+    if not file_storage:
+        abort(400, "No floorplan uploaded")
+
+    filename = secure_filename(file_storage.filename or "")
+    suffix = Path(filename).suffix.lower()
+    if not filename or suffix not in ALLOWED_PHOTO_EXTENSIONS:
+        abort(400, "No supported image file uploaded")
+
+    site_dir.mkdir(parents=True, exist_ok=True)
+    target_stem = floorplan_stem(site)
+    for existing in site_dir.iterdir():
+        if (
+            existing.is_file()
+            and existing.stem == target_stem
+            and existing.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS
+        ):
+            existing.unlink()
+
+    target = site_dir / f"{target_stem}{suffix}"
+    file_storage.save(target)
+
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "floorplan": wireless_floorplan_payload(site),
+    })
+
+
+@app.get("/api/access_point_photos")
+@app.get("/api/access-point-photos")
+def access_point_photos():
+    site = request.args.get("site", "").strip()
+    safe_site_id(site)
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "photos": list_access_point_photos(site),
+    })
+
+
+@app.post("/api/access_point_photos")
+@app.post("/api/access-point-photos")
+def upload_access_point_photos():
+    site = request.form.get("site", "").strip()
+    site_dir = access_point_photo_directory(site)
+    files = request.files.getlist("photos")
+    if not files:
+        abort(400, "No access point photos uploaded")
+
+    site_dir.mkdir(parents=True, exist_ok=True)
+    uploaded = []
+    skipped = []
+    for file_storage in files:
+        source_name = file_storage.filename or ""
+        original_name = access_point_photo_filename(site, source_name)
+        suffix = Path(original_name).suffix.lower()
+        if not original_name or suffix not in ALLOWED_PHOTO_EXTENSIONS:
+            skipped.append(file_storage.filename or "unknown")
+            continue
+
+        target = unique_photo_path(site_dir, original_name)
+        file_storage.save(target)
+        uploaded.append({
+            "original_filename": source_name,
+            "filename": target.name,
+            "path": str(Path("access_point_photos") / target.name),
+            "url": photo_url(site, str(Path("access_point_photos") / target.name)),
+            "size": target.stat().st_size,
+        })
+
+    if not uploaded:
+        abort(400, "No supported image files uploaded")
+
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "uploaded": uploaded,
+        "skipped": skipped,
+        "photos": list_access_point_photos(site),
+    })
+
+
+@app.patch("/api/access_point_photos/<path:filename>")
+@app.patch("/api/access-point-photos/<path:filename>")
+def rename_access_point_photo(filename):
+    site = request.form.get("site", "").strip()
+    if request.is_json:
+        site = str((request.get_json(silent=True) or {}).get("site") or site).strip()
+    source = access_point_photo_path(site, filename)
+
+    data = request.get_json(silent=True) or {}
+    requested_name = str(data.get("filename") or request.form.get("filename") or "").strip()
+    if not requested_name:
+        abort(400, "Missing new filename")
+
+    requested_path = Path(requested_name)
+    if not requested_path.suffix:
+        requested_name = f"{requested_name}{source.suffix}"
+
+    target_name = access_point_photo_filename(site, requested_name)
+    target_suffix = Path(target_name).suffix.lower()
+    if not target_name or target_suffix not in ALLOWED_PHOTO_EXTENSIONS:
+        abort(400, "Unsupported image filename")
+
+    target_dir = access_point_photo_directory(site)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / target_name
+    if target != source:
+        target = unique_photo_path(target_dir, target_name)
+        source.rename(target)
+
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "renamed": {
+            "original_filename": filename,
+            "filename": target.name,
+            "path": str(target.relative_to(photo_directory(site))),
+            "url": photo_url(site, str(target.relative_to(photo_directory(site)))),
+            "size": target.stat().st_size,
+        },
+        "photos": list_access_point_photos(site),
+    })
+
+
+@app.delete("/api/access_point_photos/<path:filename>")
+@app.delete("/api/access-point-photos/<path:filename>")
+def delete_access_point_photo(filename):
+    site = request.args.get("site", "").strip()
+    if request.is_json:
+        site = str((request.get_json(silent=True) or {}).get("site") or site).strip()
+    path = access_point_photo_path(site, filename)
+    path.unlink()
+
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "deleted": filename,
+        "photos": list_access_point_photos(site),
+    })
+
+
 @app.get("/api/enterprise_endpoint_diff")
 @app.get("/api/endpoint_diff")
 @app.get("/api/endpoints/diff")
@@ -695,6 +1081,7 @@ def enterprise_endpoint_diff():
 
 @app.get("/api/endpoint_feed")
 @app.get("/api/endpoint_feeed")
+@app.get("/api/feed")
 @app.get("/api/endpoints/feed")
 def endpoint_feed_api():
     try:
@@ -713,17 +1100,17 @@ def endpoint_feed_api():
 
 
 def main():
-    parser = ArgumentParser(description="Serve Polaris static files and Flask API endpoints.")
+    parser = ArgumentParser(description="Serve configured static files and Flask API endpoints.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8000, type=int)
     args = parser.parse_args()
 
-    print(f"Serving Polaris at http://{args.host}:{args.port}/polaris-web/index.html")
+    print(f"Serving {main_site_name()} at http://{args.host}:{args.port}/polaris-web/index.html")
     print(f"Inventory API: http://{args.host}:{args.port}/api/inventory")
     print(f"Endpoint API: http://{args.host}:{args.port}/api/enterprise_endpoints")
     print(f"Endpoint VLANs: http://{args.host}:{args.port}/vlans")
-    print(f"Endpoint Feed API: http://{args.host}:{args.port}/api/endpoint_feed")
-    print(f"Endpoint Feed: http://{args.host}:{args.port}/endpoint_feed")
+    print(f"Feed API: http://{args.host}:{args.port}/api/feed")
+    print(f"Feed: http://{args.host}:{args.port}/feed")
     app.run(host=args.host, port=args.port, debug=False)
 
 

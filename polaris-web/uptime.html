@@ -151,6 +151,34 @@
       text-transform: uppercase;
     }
 
+    .sort-button {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      letter-spacing: inherit;
+      text-align: left;
+      text-transform: inherit;
+    }
+
+    .sort-button:focus-visible {
+      outline: 3px solid rgba(36, 104, 242, 0.22);
+      outline-offset: 2px;
+    }
+
+    .sort-indicator {
+      color: #667080;
+      font-size: 11px;
+    }
+
     tr:last-child td {
       border-bottom: 0;
     }
@@ -202,7 +230,7 @@
     </section>
 
     <div class="search-bar">
-      <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like site:422 device:core serial:VN56 uptime:weeks code:17" autocomplete="off">
+      <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like site:422 device:core serial:VN56 type:access_point role:l2" autocomplete="off">
     </div>
     <p class="status" id="uptime-count">Loading Device Status data...</p>
     <section id="uptime-results"></section>
@@ -212,16 +240,21 @@
     const uptimeSearchEl = document.getElementById("uptime-search");
     const uptimeCountEl = document.getElementById("uptime-count");
     const uptimeResultsEl = document.getElementById("uptime-results");
-    const operationsDataFile = "/polaris/data/site_operations.json";
-    const operationsDataName = operationsDataFile.split("/").pop();
+    const inventoryFile = "/api/inventory";
+    const inventoryDataName = "inventory.db";
     const siteSorter = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
     const columns = [
       { key: "site", label: "Site" },
       { key: "device", label: "Device" },
+      { key: "ipAddress", label: "IP Address" },
       { key: "techRoom", label: "Tech Room" },
       { key: "serialNumber", label: "Serial Number" },
-      { key: "uptime", label: "uptime" },
-      { key: "codeVersion", label: "code_version" }
+      { key: "deviceType", label: "device_type" },
+      { key: "deviceRole", label: "device_role" },
+      { key: "deviceModel", label: "device_model" },
+      { key: "osVersion", label: "os_version" },
+      { key: "haStatus", label: "ha_status" },
+      { key: "physicalAddress", label: "physical_address" }
     ];
     const aliases = {
       site: "site",
@@ -238,14 +271,29 @@
       serial: "serialNumber",
       serialnumber: "serialNumber",
       serial_number: "serialNumber",
-      uptime: "uptime",
-      code: "codeVersion",
-      codeversion: "codeVersion",
-      code_version: "codeVersion",
-      version: "codeVersion"
+      type: "deviceType",
+      devicetype: "deviceType",
+      device_type: "deviceType",
+      role: "deviceRole",
+      devicerole: "deviceRole",
+      device_role: "deviceRole",
+      model: "deviceModel",
+      devicemodel: "deviceModel",
+      device_model: "deviceModel",
+      os: "osVersion",
+      version: "osVersion",
+      osversion: "osVersion",
+      os_version: "osVersion",
+      ha: "haStatus",
+      hastatus: "haStatus",
+      ha_status: "haStatus",
+      address: "physicalAddress",
+      physicaladdress: "physicalAddress",
+      physical_address: "physicalAddress"
     };
     let uptimeRows = [];
     let uptimeUpdated = "";
+    let uptimeSort = { key: "site", direction: "asc" };
 
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, (character) => ({
@@ -317,12 +365,15 @@
       return rows.map((row) => ({
         site: getFirstValue(row, ["Site", "site"]),
         device: getFirstValue(row, ["FQDN", "fqdn", "Device", "device"]),
+        ipAddress: getFirstValue(row, ["IP_Address", "ip_address", "ipAddress"]),
         techRoom: getFirstValue(row, ["Tech_Room", "tech_room", "Tech Room", "techRoom"]),
-        ipAddress: getFirstValue(row, ["IP_Address", "ip_address"]),
-        member: getFirstValue(row, ["Member", "member"]),
         serialNumber: getFirstValue(row, ["Serial_Number", "Member_Serial", "serial_number"]),
-        uptime: getFirstValue(row, ["Uptime", "Member_Uptime", "uptime"]),
-        codeVersion: getFirstValue(row, ["Code_Version", "code_version", "Code Version", "codeVersion"])
+        deviceType: getFirstValue(row, ["device_type", "Device_Type", "deviceType"]),
+        deviceRole: getFirstValue(row, ["device_role", "Device_Role", "deviceRole"]),
+        deviceModel: getFirstValue(row, ["device_model", "Device_Model", "deviceModel"]),
+        osVersion: getFirstValue(row, ["os_version", "OS_Version", "osVersion"]),
+        haStatus: getFirstValue(row, ["ha_status", "HA_Status", "haStatus", "ha"]),
+        physicalAddress: getFirstValue(row, ["physical_address", "Physical_Address", "physicalAddress"])
       }));
     }
 
@@ -380,12 +431,40 @@
       return tokens.every((token) => rowMatchesToken(row, token));
     }
 
+    function compareValues(left, right, key) {
+      return siteSorter.compare(String(left[key] ?? ""), String(right[key] ?? ""));
+    }
+
+    function sortedRows(rows) {
+      const direction = uptimeSort.direction === "desc" ? -1 : 1;
+      return [...rows].sort((left, right) => {
+        const primary = compareValues(left, right, uptimeSort.key);
+        const secondary = siteSorter.compare(left.site, right.site) || siteSorter.compare(left.device, right.device);
+        return (primary || secondary) * direction;
+      });
+    }
+
+    function sortIndicator(column) {
+      if (column.key !== uptimeSort.key) {
+        return "";
+      }
+
+      return uptimeSort.direction === "asc" ? "asc" : "desc";
+    }
+
     function renderTable(rows) {
       if (rows.length === 0) {
         return '<div class="empty">No records match the current search.</div>';
       }
 
-      const headers = columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
+      const headers = columns.map((column) => `
+        <th>
+          <button class="sort-button" type="button" data-uptime-sort="${escapeHtml(column.key)}">
+            <span>${escapeHtml(column.label)}</span>
+            <span class="sort-indicator">${escapeHtml(sortIndicator(column))}</span>
+          </button>
+        </th>
+      `).join("");
       const body = rows.map((row) => `
         <tr>
           ${columns.map((column) => `<td>${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
@@ -406,35 +485,48 @@
 
     function renderResults() {
       const query = uptimeSearchEl.value.trim();
-      const visibleRows = uptimeRows.filter((row) => rowMatchesSearch(row, query));
+      const visibleRows = sortedRows(uptimeRows.filter((row) => rowMatchesSearch(row, query)));
       const countLabel = query
-        ? `Showing ${visibleRows.length} of ${uptimeRows.length} Device Status records`
-        : `Showing ${uptimeRows.length} Device Status records`;
+        ? `Showing ${visibleRows.length} of ${uptimeRows.length} network devices`
+        : `Showing ${uptimeRows.length} network devices`;
 
-      uptimeCountEl.textContent = `${countLabel} from ${operationsDataName}${uptimeUpdated}`;
+      uptimeCountEl.textContent = `${countLabel} from ${inventoryDataName}${uptimeUpdated}`;
       uptimeResultsEl.innerHTML = renderTable(visibleRows);
     }
 
     async function loadUptime() {
       try {
-        const response = await fetch(operationsDataFile, { cache: "no-store" });
+        const response = await fetch(inventoryFile, { cache: "no-store" });
         if (!response.ok) {
-          throw new Error(`Could not load ${operationsDataFile} (${response.status})`);
+          throw new Error(`Could not load ${inventoryFile} (${response.status})`);
         }
 
         const data = await response.json();
-        uptimeUpdated = data.last_updated ? `, updated ${data.last_updated}` : "";
-        uptimeRows = normalizeRows(data.records || [])
+        uptimeUpdated = data.imported_at ? `, imported ${data.imported_at}` : "";
+        uptimeRows = normalizeRows(data.devices || [])
           .sort((a, b) => siteSorter.compare(a.site, b.site) || a.device.localeCompare(b.device));
         renderResults();
       } catch (error) {
         uptimeCountEl.textContent = "Unable to load Device Status data.";
-        uptimeResultsEl.innerHTML = '<div class="error">Unable to load Device Status data from /polaris/data.</div>';
+        uptimeResultsEl.innerHTML = '<div class="error">Start the Polaris server with python3 serve_polaris.py so the page can read inventory.db.</div>';
         console.error(error);
       }
     }
 
     uptimeSearchEl.addEventListener("input", renderResults);
+    uptimeResultsEl.addEventListener("click", (event) => {
+      const sortButton = event.target.closest("[data-uptime-sort]");
+      if (!sortButton) {
+        return;
+      }
+
+      const key = sortButton.dataset.uptimeSort;
+      uptimeSort = {
+        key,
+        direction: uptimeSort.key === key && uptimeSort.direction === "asc" ? "desc" : "asc"
+      };
+      renderResults();
+    });
     loadUptime();
   </script>
 </body>

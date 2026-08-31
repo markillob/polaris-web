@@ -49,6 +49,18 @@
       text-decoration: none;
     }
 
+    .page-footer {
+      display: flex;
+      justify-content: center;
+      margin: 36px 0 0;
+      padding: 20px 0 0;
+      border-top: 1px solid rgba(204, 213, 227, 0.75);
+    }
+
+    .page-footer .theme-toggle {
+      margin-left: 0;
+    }
+
     .hero {
       max-width: 820px;
       margin: 56px auto 34px;
@@ -388,10 +400,6 @@
 </head>
 <body>
   <main>
-    <header class="topbar">
-      <a class="brand" href="#">Polaris</a>
-    </header>
-
     <section class="hero" aria-labelledby="page-title">
       <p class="eyebrow">Network Visibility Tool</p>
       <h1 id="page-title">Polaris</h1>
@@ -402,7 +410,7 @@
       <a class="action-button" href="/polaris-web/summary.html" id="summary-button">summary</a>
       <a class="action-button" href="/polaris-web/uptime.html" id="uptime-button">device status</a>
       <a class="action-button" href="/polaris-web/endpoints.html" id="endpoints-button">endpoints</a>
-      <a class="action-button" href="/endpoint_feed" id="endpoint-feed-button">endpoint feed</a>
+      <a class="action-button" href="/feed" id="endpoint-feed-button">feed</a>
       <a class="action-button" href="/polaris-web/routes.html" id="routes-button">routes</a>
       <a class="action-button" href="/polaris-web/locations.html" id="locations-button">locations</a>
     </section>
@@ -442,6 +450,8 @@
       </div>
       <div id="status-results"></div>
     </section>
+
+    <footer class="page-footer" data-theme-toggle-host></footer>
   </main>
 
   <script>
