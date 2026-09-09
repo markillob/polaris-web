@@ -64,6 +64,18 @@ Endpoint data is served from:
 /polaris/data/enterprise_endpoints.db
 ```
 
+Interface state data is served from:
+
+```text
+/api/interfaces
+/polaris/data/IFSTATE_status.db
+/polaris/data/IFSTATE_counters.db
+```
+
+`IFSTATE_status.db` table `ifstate_status` drives the main interfaces table. Rows are grouped by `device_id`, with up/down interface counts shown next to each device name.
+
+`IFSTATE_counters.db` table `ifstate_counters` drives the collapsible counters section. Counter columns are shown as deltas from the latest timestamp minus the previous timestamp for each `site`, `device`, and `interface`; negative deltas are shown as `0`.
+
 ## Required Data Fields
 
 These are the fields currently used by the web app. Keep them present when regenerating the data sources.
@@ -81,6 +93,10 @@ ip_address
 serial_number
 device_type
 device_role
+device_model
+os_version
+device_uptime
+ha_status
 location
 access
 tag
@@ -96,9 +112,13 @@ Usage:
 site             main site list, filters, per-site pages, inventory counts
 fqdn             device name display and search
 ip_address       device IP display and search
-serial_number    device serial display, search, physical device counts
+serial_number    Device Status display/search, physical device counts
 device_type      device type display, search, summary counts
 device_role      device role display, search, L3 gateway and fleet summaries
+device_model     Device Status display/search
+os_version       Device Status display/search
+device_uptime    Device Status display/search
+ha_status        Device Status HA display/search
 location         wireless device filtering and display
 access           wireless device filtering and display
 tag              wireless device filtering for access_point
@@ -178,15 +198,16 @@ uptime: Uptime, Member_Uptime, uptime
 code version: Code_Version, code_version, Code Version, codeVersion
 ```
 
-### `enterprise_routing.json`
+### `enterprise_routing.db`
 
-Route records should include these fields, or one of the supported aliases:
+The `routes` table should include these fields:
 
 ```text
-site: site, Site
-device: fqdn, FQDN, device, Device
-vlan: vlan_id, VLAN_ID, vlanId, VLAN
-subnet: subnet, Subnet, network, Network
+site: site_id
+device: fqdn
+vlan: vlan_id
+subnet: subnet
+routable: routable
 ```
 
 ### SSH Status CSV

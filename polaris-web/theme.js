@@ -15,8 +15,16 @@
     document.body.dataset.theme = theme;
     const button = document.querySelector("[data-theme-toggle]");
     if (button) {
-      button.textContent = theme === "dark" ? "light background" : "dark background";
+      if (!button.querySelector(".theme-toggle-option")) {
+        button.innerHTML = `
+          <span class="theme-toggle-thumb" aria-hidden="true"></span>
+          <span class="theme-toggle-option theme-toggle-light">white</span>
+          <span class="theme-toggle-option theme-toggle-dark">dark</span>
+        `;
+      }
+      button.dataset.activeTheme = theme;
       button.setAttribute("aria-pressed", String(theme === "dark"));
+      button.setAttribute("aria-label", theme === "dark" ? "switch to white background" : "switch to dark background");
     }
   }
 
@@ -33,6 +41,11 @@
     button.className = "theme-toggle";
     button.type = "button";
     button.dataset.themeToggle = "true";
+    button.innerHTML = `
+      <span class="theme-toggle-thumb" aria-hidden="true"></span>
+      <span class="theme-toggle-option theme-toggle-light">white</span>
+      <span class="theme-toggle-option theme-toggle-dark">dark</span>
+    `;
     button.addEventListener("click", () => {
       const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
       localStorage.setItem(storageKey, nextTheme);

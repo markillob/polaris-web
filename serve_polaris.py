@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 import sqlite3
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
@@ -15,6 +16,9 @@ WEB_ROOT = ROOT / "polaris-web"
 DATA_ROOT = ROOT / "polaris" / "data"
 DB_PATH = DATA_ROOT / "enterprise_endpoints.db"
 INVENTORY_DB_PATH = DATA_ROOT / "inventory.db"
+ROUTING_DB_PATH = DATA_ROOT / "enterprise_routing.db"
+IFSTATE_COUNTER_DB_PATH = DATA_ROOT / "IFSTATE_counters.db"
+IFSTATE_STATUS_DB_PATH = DATA_ROOT / "IFSTATE_status.db"
 CONFIG_PATH = DATA_ROOT / "config.yaml"
 PHOTO_ROOT = DATA_ROOT / "site_photos"
 ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -42,6 +46,15 @@ def upload_too_large(error):
         "message": "Upload is larger than 100 MB. Upload fewer or smaller photos.",
         "status": 413,
     }), 413
+
+
+@app.after_request
+def no_store_app_files(response):
+    if request.path.startswith(("/polaris-web", "/api")):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 
 ENDPOINT_COLUMNS = """
@@ -79,6 +92,7 @@ INVENTORY_COLUMNS = """
     tags,
     device_model,
     os_version,
+    device_uptime,
     env_type,
     isp_provider,
     isp_type,
@@ -89,6 +103,14 @@ INVENTORY_COLUMNS = """
     l3_gateway,
     physical_address,
     comment_01
+"""
+
+ROUTING_COLUMNS = """
+    site_id,
+    fqdn,
+    vlan_id,
+    subnet,
+    routable
 """
 
 
@@ -171,6 +193,17 @@ def read_config():
 def main_site_name():
     config = read_config()
     return str(config.get("site_name", {}).get("main_site") or "polaris").strip() or "polaris"
+
+
+def read_yaml_document(path):
+    text = path.read_text(encoding="utf-8")
+    try:
+        import yaml
+        loaded = yaml.safe_load(text) or {}
+    except ImportError:
+        loaded = parse_simple_yaml(text)
+
+    return loaded if isinstance(loaded, dict) else {}
 
 
 def read_endpoint_rows(site_filter=""):
@@ -261,9 +294,530 @@ def read_inventory_rows(site_filter=""):
         normalized_row = dict(row)
         for column in expected_columns:
             normalized_row.setdefault(column, "")
+        normalized_row["backup_config"] = backup_config_info(
+            normalized_row.get("site", ""),
+            normalized_row.get("fqdn", ""),
+        )
+        normalized_row["backup_config_exists"] = normalized_row["backup_config"]["exists"]
+        normalized_row["backup_config_date"] = normalized_row["backup_config"]["date"]
+        normalized_row["backup_config_file"] = normalized_row["backup_config"]["file"]
         normalized_rows.append(normalized_row)
 
     return normalized_rows, imported_at or ""
+
+
+def read_routing_rows(site_filter=""):
+    if not ROUTING_DB_PATH.exists():
+        raise FileNotFoundError(f"Database not found: {ROUTING_DB_PATH}")
+
+    where_clause = ""
+    params = []
+    if site_filter:
+        where_clause = "WHERE site_id = ?"
+        params.append(site_filter)
+
+    with sqlite3.connect(ROUTING_DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        available_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(routes)").fetchall()
+        }
+        expected_columns = column_names(ROUTING_COLUMNS)
+        missing_columns = [column for column in expected_columns if column not in available_columns]
+        if missing_columns:
+            raise sqlite3.Error(f"missing required columns: {', '.join(missing_columns)}")
+
+        rows = conn.execute(f"""
+            SELECT {ROUTING_COLUMNS}
+            FROM routes
+            {where_clause}
+            ORDER BY site_id, fqdn, CAST(vlan_id AS INTEGER), subnet
+        """, params).fetchall()
+
+        if "updated_at" in available_columns:
+            last_updated = conn.execute(f"""
+                SELECT COALESCE(MAX(NULLIF(updated_at, '')), '') AS last_updated
+                FROM routes
+                {where_clause}
+            """, params).fetchone()["last_updated"]
+        else:
+            last_updated = ""
+
+    normalized_rows = []
+    for row in rows:
+        normalized_rows.append({
+            "site": row["site_id"] or "",
+            "fqdn": row["fqdn"] or "",
+            "vlan_id": row["vlan_id"] or "",
+            "subnet": row["subnet"] or "",
+            "routable": row["routable"] or "",
+        })
+
+    return normalized_rows, last_updated or ""
+
+
+def parse_ifstate_filename(filename):
+    path = Path(filename)
+    if path.suffix.lower() not in {".yaml", ".yml"}:
+        return None
+
+    stem = path.stem
+    if not stem.startswith("IFSTATE_"):
+        return None
+
+    body = stem[len("IFSTATE_"):]
+    match = re.match(r"^(.+?)_(\d{8}(?:[_-]?\d{6})?)$", body)
+    if match:
+        device_id = match.group(1)
+        stamp = match.group(2)
+    else:
+        device_id = body
+        stamp = ""
+
+    if not device_id:
+        return None
+
+    parsed_datetime = None
+    normalized_stamp = ""
+    if stamp:
+        parsed_datetime, normalized_stamp = parse_backup_datetime(stamp)
+
+    return {
+        "device": device_id,
+        "stamp": normalized_stamp or stamp,
+        "datetime": parsed_datetime,
+    }
+
+
+def interface_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    if isinstance(value, dict):
+        return ", ".join(f"{key}:{interface_value(nested)}" for key, nested in value.items())
+    return str(value)
+
+
+def counter_value(counters, key):
+    value = counters.get(key, {}) if isinstance(counters, dict) else {}
+    if isinstance(value, dict):
+        rx = value.get("rx", "")
+        tx = value.get("tx", "")
+        if rx != "" or tx != "":
+            return f"rx:{rx} tx:{tx}"
+    return interface_value(value)
+
+
+def normalize_ifstate_interfaces(interfaces):
+    if not isinstance(interfaces, dict):
+        return []
+
+    rows = []
+    for name, details in interfaces.items():
+        details = details if isinstance(details, dict) else {}
+        counters = details.get("counters", {})
+        rows.append({
+            "name": str(name),
+            "status": interface_value(details.get("status")),
+            "admin_status": interface_value(details.get("admin_status")),
+            "description": interface_value(details.get("description")),
+            "mode": interface_value(details.get("mode")),
+            "vlans": interface_value(details.get("vlans")),
+            "native_vlan": interface_value(details.get("native_vlan")),
+            "speed": interface_value(details.get("speed")),
+            "errors": counter_value(counters, "errors"),
+            "dropped": counter_value(counters, "dropped"),
+            "crc_fcs": counter_value(counters, "crc_fcs"),
+        })
+
+    return sorted(rows, key=lambda row: row["name"])
+
+
+def numeric_delta_value(value):
+    try:
+        return int(float(str(value or "").strip()))
+    except ValueError:
+        return 0
+
+
+def read_ifstate_rows(db_path, table_name, site_id):
+    if not db_path.exists():
+        raise FileNotFoundError(f"Database not found: {db_path}")
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        available_columns = [
+            row["name"]
+            for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        ]
+        required_columns = {"site", "device", "interface"}
+        missing_columns = sorted(required_columns - set(available_columns))
+        if missing_columns:
+            raise sqlite3.Error(f"{table_name} missing required columns: {', '.join(missing_columns)}")
+
+        quoted_columns = ", ".join(f'"{column}"' for column in available_columns)
+        order_columns = [
+            column
+            for column in ("device", "interface", "timestamp", "id")
+            if column in available_columns
+        ]
+        order_clause = ", ".join(f'"{column}"' for column in order_columns) or '"device", "interface"'
+        rows = conn.execute(f"""
+            SELECT {quoted_columns}
+            FROM {table_name}
+            WHERE site = ?
+            ORDER BY {order_clause}
+        """, [site_id]).fetchall()
+
+        if "timestamp" in available_columns:
+            last_updated = conn.execute(f"""
+                SELECT COALESCE(MAX(NULLIF(timestamp, '')), '') AS last_updated
+                FROM {table_name}
+                WHERE site = ?
+            """, [site_id]).fetchone()["last_updated"]
+        else:
+            last_updated = ""
+
+    return available_columns, rows, last_updated or ""
+
+
+def row_timestamp_key(row, columns):
+    return (
+        "" if "timestamp" not in columns or row["timestamp"] is None else str(row["timestamp"]),
+        row["id"] if "id" in columns and row["id"] is not None else 0,
+    )
+
+
+def latest_ifstate_rows(rows, columns):
+    rows_by_interface = {}
+    for row in rows:
+        key = (
+            "" if row["site"] is None else str(row["site"]),
+            "" if row["device"] is None else str(row["device"]),
+            "" if row["interface"] is None else str(row["interface"]),
+        )
+        rows_by_interface.setdefault(key, []).append(row)
+
+    return [
+        sorted(grouped_rows, key=lambda row: row_timestamp_key(row, columns), reverse=True)[0]
+        for grouped_rows in rows_by_interface.values()
+    ]
+
+
+def interface_status_summary(rows):
+    summary = {"up": 0, "down": 0, "other": 0}
+    for row in rows:
+        status = str(row.get("status", "")).strip().lower()
+        if status == "up":
+            summary["up"] += 1
+        elif status == "down":
+            summary["down"] += 1
+        else:
+            summary["other"] += 1
+    return summary
+
+
+def list_site_interface_status(site):
+    site_id = safe_site_id(site)
+    columns, rows, last_updated = read_ifstate_rows(IFSTATE_STATUS_DB_PATH, "ifstate_status", site_id)
+    latest_rows = latest_ifstate_rows(rows, columns)
+    display_columns = [
+        column
+        for column in columns
+        if column not in {"id", "site", "device"}
+    ]
+
+    devices_by_name = {}
+    for row in latest_rows:
+        row_data = {
+            column: "" if row[column] is None else str(row[column])
+            for column in columns
+        }
+        device_name = row_data.get("device", "")
+        row_data["device_id"] = device_name
+        devices_by_name.setdefault(device_name, []).append(row_data)
+
+    devices = []
+    for device_name in sorted(devices_by_name, key=lambda value: value.lower()):
+        interfaces = sorted(
+            devices_by_name[device_name],
+            key=lambda row: row.get("interface", ""),
+        )
+        devices.append({
+            "device": device_name,
+            "device_id": device_name,
+            "file": "IFSTATE_status.db",
+            "path": "/polaris/data/IFSTATE_status.db",
+            "generated_at": last_updated,
+            "interface_count": len(interfaces),
+            "status_summary": interface_status_summary(interfaces),
+            "interfaces": interfaces,
+        })
+
+    return {
+        "path": "/polaris/data/IFSTATE_status.db",
+        "columns": display_columns,
+        "last_updated": last_updated,
+        "devices": devices,
+        "total_devices": len(devices),
+        "total_interfaces": sum(device["interface_count"] for device in devices),
+    }
+
+
+def list_site_interfaces(site):
+    site_id = safe_site_id(site)
+    status_payload = list_site_interface_status(site_id)
+    if not IFSTATE_COUNTER_DB_PATH.exists():
+        return {
+            "exists": True,
+            "path": status_payload["path"],
+            "status_path": status_payload["path"],
+            "status_columns": status_payload["columns"],
+            "status_last_updated": status_payload["last_updated"],
+            "status_devices": status_payload["devices"],
+            "status_total_devices": status_payload["total_devices"],
+            "status_total_interfaces": status_payload["total_interfaces"],
+            "counter_path": "/polaris/data/IFSTATE_counters.db",
+            "columns": [],
+            "last_updated": "",
+            "devices": [],
+            "total_devices": 0,
+            "total_interfaces": 0,
+        }
+
+    with sqlite3.connect(IFSTATE_COUNTER_DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        available_columns = [
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(ifstate_counters)").fetchall()
+        ]
+        required_columns = {"site", "device", "interface"}
+        missing_columns = sorted(required_columns - set(available_columns))
+        if missing_columns:
+            raise sqlite3.Error(f"missing required columns: {', '.join(missing_columns)}")
+
+        selected_columns = available_columns
+        quoted_columns = ", ".join(f'"{column}"' for column in selected_columns)
+        order_columns = [
+            column
+            for column in ("device", "interface", "timestamp", "id")
+            if column in available_columns
+        ]
+        order_clause = ", ".join(f'"{column}"' for column in order_columns) or '"device", "interface"'
+
+        rows = conn.execute(f"""
+            SELECT {quoted_columns}
+            FROM ifstate_counters
+            WHERE site = ?
+            ORDER BY {order_clause}
+        """, [site_id]).fetchall()
+        if "timestamp" in available_columns:
+            last_updated = conn.execute("""
+                SELECT COALESCE(MAX(NULLIF(timestamp, '')), '') AS last_updated
+                FROM ifstate_counters
+                WHERE site = ?
+            """, [site_id]).fetchone()["last_updated"]
+        else:
+            last_updated = ""
+
+    display_columns = [
+        column
+        for column in selected_columns
+        if column not in {"id", "site", "device"}
+    ]
+    if "timestamp" in display_columns:
+        display_columns.insert(display_columns.index("timestamp") + 1, "previous_timestamp")
+    preferred_counter_column_order = ["timestamp", "previous_timestamp", "interface", "status"]
+    display_columns = [
+        column
+        for column in preferred_counter_column_order
+        if column in display_columns
+    ] + [
+        column
+        for column in display_columns
+        if column not in preferred_counter_column_order
+    ]
+
+    counter_columns = [
+        column
+        for column in selected_columns
+        if column.endswith("_rx") or column.endswith("_tx")
+    ]
+    rows_by_interface = {}
+    for row in rows:
+        key = (
+            "" if row["site"] is None else str(row["site"]),
+            "" if row["device"] is None else str(row["device"]),
+            "" if row["interface"] is None else str(row["interface"]),
+        )
+        rows_by_interface.setdefault(key, []).append(row)
+
+    devices_by_name = {}
+    for grouped_rows in rows_by_interface.values():
+        sorted_rows = sorted(
+            grouped_rows,
+            key=lambda row: (
+                "" if "timestamp" not in selected_columns or row["timestamp"] is None else str(row["timestamp"]),
+                row["id"] if "id" in selected_columns and row["id"] is not None else 0,
+            ),
+            reverse=True,
+        )
+        row = sorted_rows[0]
+        previous_row = sorted_rows[1] if len(sorted_rows) > 1 else None
+        row_data = {
+            column: "" if row[column] is None else str(row[column])
+            for column in selected_columns
+        }
+        row_data["previous_timestamp"] = (
+            "" if not previous_row or "timestamp" not in selected_columns or previous_row["timestamp"] is None
+            else str(previous_row["timestamp"])
+        )
+        for column in counter_columns:
+            if not previous_row:
+                row_data[column] = "0"
+                continue
+
+            current_value = numeric_delta_value(row[column])
+            previous_value = numeric_delta_value(previous_row[column])
+            row_data[column] = str(max(current_value - previous_value, 0))
+
+        device_name = row_data.get("device", "")
+        devices_by_name.setdefault(device_name, []).append(row_data)
+
+    devices = []
+    for device_name in sorted(devices_by_name, key=lambda value: value.lower()):
+        interfaces = sorted(
+            devices_by_name[device_name],
+            key=lambda row: row.get("interface", ""),
+        )
+        devices.append({
+            "device": device_name,
+            "ip": "",
+            "generated_at": last_updated or "",
+            "file": "IFSTATE_counters.db",
+            "path": "/polaris/data/IFSTATE_counters.db",
+            "interface_count": len(interfaces),
+            "interfaces": interfaces,
+        })
+
+    return {
+        "exists": True,
+        "path": status_payload["path"],
+        "status_path": status_payload["path"],
+        "status_columns": status_payload["columns"],
+        "status_last_updated": status_payload["last_updated"],
+        "status_devices": status_payload["devices"],
+        "status_total_devices": status_payload["total_devices"],
+        "status_total_interfaces": status_payload["total_interfaces"],
+        "counter_path": "/polaris/data/IFSTATE_counters.db",
+        "columns": display_columns,
+        "last_updated": last_updated or "",
+        "devices": devices,
+        "total_devices": len(devices),
+        "total_interfaces": sum(device["interface_count"] for device in devices),
+    }
+
+
+def parse_backup_datetime(value):
+    match = re.search(r"(\d{4}-\d{2}-\d{2}|\d{8})(?:[_-]?(\d{6}))?", value)
+    if not match:
+        return None, ""
+
+    date_value = match.group(1)
+    time_value = match.group(2) or ""
+    try:
+        if "-" in date_value:
+            parsed_date = datetime.strptime(date_value, "%Y-%m-%d")
+            normalized_date = date_value
+        else:
+            parsed_date = datetime.strptime(date_value, "%Y%m%d")
+            normalized_date = parsed_date.strftime("%Y-%m-%d")
+
+        if time_value:
+            parsed_time = datetime.strptime(time_value, "%H%M%S").time()
+            parsed_date = datetime.combine(parsed_date.date(), parsed_time)
+            normalized_date = f"{normalized_date} {time_value[0:2]}:{time_value[2:4]}:{time_value[4:6]}"
+    except ValueError:
+        return None, ""
+
+    return parsed_date, normalized_date
+
+
+def backup_config_info(site, device_name):
+    site_id = secure_filename(str(site or "").strip())
+    filename = str(device_name or "").strip()
+    if not site_id or not filename or "/" in filename or "\\" in filename:
+        return {"exists": False, "date": "", "file": "", "path": ""}
+
+    site_dir = DATA_ROOT / site_id
+    if not site_dir.exists() or not site_dir.is_dir():
+        return {"exists": False, "date": "", "file": "", "path": ""}
+
+    prefix = f"{filename}-"
+    today = datetime.now()
+    candidates = []
+    for path in site_dir.iterdir():
+        if not path.is_file() or not path.name.startswith(prefix):
+            continue
+
+        backup_datetime, backup_date = parse_backup_datetime(path.name[len(prefix):])
+        if not backup_datetime:
+            continue
+
+        candidates.append((
+            abs((backup_datetime - today).total_seconds()),
+            path.name,
+            backup_date,
+            path,
+        ))
+
+    if not candidates:
+        return {"exists": False, "date": "", "file": "", "path": ""}
+
+    _, _, backup_date, path = min(candidates, key=lambda item: (item[0], item[1]))
+    return {
+        "exists": True,
+        "date": backup_date,
+        "file": path.name,
+        "path": f"/polaris/data/{site_id}/{path.name}",
+    }
+
+
+def list_site_backup_contents(site):
+    site_id = safe_site_id(site)
+    directory = DATA_ROOT / site_id
+    if not directory.exists():
+        return {
+            "exists": False,
+            "path": f"/polaris/data/{site_id}",
+            "items": [],
+        }
+
+    if not directory.is_dir():
+        abort(400, f"{directory} is not a directory")
+
+    items = []
+    for path in directory.iterdir():
+        if path.name.startswith(".") or not path.is_file() or not path.name.startswith(site_id):
+            continue
+
+        stat = path.stat()
+        item = {
+            "name": path.name,
+            "type": "file",
+            "size": stat.st_size,
+            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
+            "url": f"/polaris/data/{site_id}/{quote(path.name)}",
+        }
+        items.append(item)
+
+    return {
+        "exists": True,
+        "path": f"/polaris/data/{site_id}",
+        "name_filter": f"{site_id}*",
+        "items": sorted(items, key=lambda item: (item["type"] != "folder", item["name"].lower())),
+    }
 
 
 def safe_site_id(site):
@@ -290,12 +844,13 @@ def safe_photo_filename(filename):
     return cleaned
 
 
-def photo_payload(site, path, filename=None):
+def photo_payload(site, path, filename=None, category="site photos"):
     relative_name = filename or path.name
     return {
         "filename": Path(relative_name).name,
         "path": str(relative_name),
         "url": photo_url(site, str(relative_name)),
+        "category": category,
         "size": path.stat().st_size,
         "modified": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"),
     }
@@ -309,12 +864,8 @@ def list_site_photos(site):
     photos = []
     for path in sorted(directory.iterdir(), key=lambda item: item.stat().st_mtime, reverse=True):
         if path.is_file() and path.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS:
-            photos.append({
-                "filename": path.name,
-                "url": photo_url(site, path.name),
-                "size": path.stat().st_size,
-                "modified": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"),
-            })
+            category = "wireless floorplan" if path.stem == floorplan_stem(site) else "site photos"
+            photos.append(photo_payload(site, path, path.name, category))
     return photos
 
 
@@ -390,7 +941,19 @@ def access_point_photo_directory(site):
     return photo_directory(site) / "access_point_photos"
 
 
+def telco_room_photo_directory(site):
+    return photo_directory(site) / "telco_rooms"
+
+
 def access_point_photo_filename(site, original_name):
+    filename = safe_photo_filename(original_name)
+    if not filename:
+        return ""
+
+    return filename
+
+
+def telco_room_photo_filename(site, original_name):
     filename = safe_photo_filename(original_name)
     if not filename:
         return ""
@@ -421,13 +984,28 @@ def access_point_photo_path(site, filename):
     return path
 
 
+def telco_room_photo_path(site, filename):
+    cleaned = safe_photo_filename(filename)
+    if not cleaned:
+        abort(400, "Missing filename")
+
+    if Path(cleaned).suffix.lower() not in ALLOWED_PHOTO_EXTENSIONS:
+        abort(400, "Unsupported image file")
+
+    path = telco_room_photo_directory(site) / cleaned
+    if not path.exists() or not path.is_file():
+        abort(404, "Photo not found")
+
+    return path
+
+
 def list_access_point_photos(site):
     photos = []
     directory = access_point_photo_directory(site)
     if directory.exists():
         for path in directory.iterdir():
             if path.is_file() and path.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS:
-                photos.append(photo_payload(site, path, Path("access_point_photos") / path.name))
+                photos.append(photo_payload(site, path, Path("access_point_photos") / path.name, "access point photos"))
 
     legacy_directory = photo_directory(site)
     prefix = access_point_photo_prefix(site).lower()
@@ -438,7 +1016,37 @@ def list_access_point_photos(site):
                 and path.name.lower().startswith(prefix)
                 and path.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS
             ):
-                photos.append(photo_payload(site, path))
+                photos.append(photo_payload(site, path, path.name, "access point photos"))
+
+    return sorted(photos, key=lambda item: item["modified"], reverse=True)
+
+
+def list_telco_room_photos(site):
+    directory = telco_room_photo_directory(site)
+    if not directory.exists():
+        return []
+
+    photos = []
+    for path in directory.iterdir():
+        if path.is_file() and path.suffix.lower() in ALLOWED_PHOTO_EXTENSIONS:
+            photos.append(photo_payload(site, path, Path("telco_rooms") / path.name, "telco rooms"))
+
+    return sorted(photos, key=lambda item: item["modified"], reverse=True)
+
+
+def list_all_site_photos(site):
+    photos = []
+    seen = set()
+    for photo in [
+        *list_site_photos(site),
+        *list_access_point_photos(site),
+        *list_telco_room_photos(site),
+    ]:
+        key = photo.get("url") or photo.get("path") or photo.get("filename")
+        if key in seen:
+            continue
+        seen.add(key)
+        photos.append(photo)
 
     return sorted(photos, key=lambda item: item["modified"], reverse=True)
 
@@ -790,6 +1398,26 @@ def enterprise_endpoints():
     })
 
 
+@app.get("/api/enterprise_routing")
+@app.get("/api/routes")
+def enterprise_routing():
+    site_filter = request.args.get("site", "").strip()
+    try:
+        rows, last_updated = read_routing_rows(site_filter)
+    except FileNotFoundError as error:
+        abort(404, str(error))
+    except sqlite3.Error as error:
+        abort(500, f"Unable to read enterprise_routing.db: {error}")
+
+    return jsonify({
+        "source": "/polaris/data/enterprise_routing.db",
+        "site": site_filter,
+        "last_updated": last_updated,
+        "total": len(rows),
+        "routes": rows,
+    })
+
+
 @app.get("/api/inventory")
 @app.get("/api/network_inventory")
 def inventory():
@@ -807,6 +1435,35 @@ def inventory():
         "imported_at": imported_at,
         "total": len(rows),
         "devices": rows,
+    })
+
+
+@app.get("/api/site_backups")
+@app.get("/api/backups")
+def site_backups():
+    site = request.args.get("site", "").strip()
+    return jsonify({
+        "source": "/polaris/data",
+        "site": site,
+        **list_site_backup_contents(site),
+    })
+
+
+@app.get("/api/interfaces")
+@app.get("/api/site_interfaces")
+def site_interfaces():
+    site = request.args.get("site", "").strip()
+    try:
+        payload = list_site_interfaces(site)
+    except FileNotFoundError as error:
+        abort(404, str(error))
+    except sqlite3.Error as error:
+        abort(500, f"Unable to read interface state database: {error}")
+
+    return jsonify({
+        "source": "/polaris/data/IFSTATE_status.db",
+        "site": site,
+        **payload,
     })
 
 
@@ -856,7 +1513,7 @@ def site_photos():
     return jsonify({
         "source": "/polaris/data/site_photos",
         "site": site,
-        "photos": list_site_photos(site),
+        "photos": list_all_site_photos(site),
     })
 
 
@@ -894,7 +1551,7 @@ def upload_site_photos():
         "site": site,
         "uploaded": uploaded,
         "skipped": skipped,
-        "photos": list_site_photos(site),
+        "photos": list_all_site_photos(site),
     })
 
 
@@ -1055,6 +1712,120 @@ def delete_access_point_photo(filename):
         "site": site,
         "deleted": filename,
         "photos": list_access_point_photos(site),
+    })
+
+
+@app.get("/api/telco_rooms")
+@app.get("/api/telco-room-photos")
+def telco_rooms():
+    site = request.args.get("site", "").strip()
+    safe_site_id(site)
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "photos": list_telco_room_photos(site),
+    })
+
+
+@app.post("/api/telco_rooms")
+@app.post("/api/telco-room-photos")
+def upload_telco_room_photos():
+    site = request.form.get("site", "").strip()
+    site_dir = telco_room_photo_directory(site)
+    files = request.files.getlist("photos")
+    if not files:
+        abort(400, "No telco room photos uploaded")
+
+    site_dir.mkdir(parents=True, exist_ok=True)
+    uploaded = []
+    skipped = []
+    for file_storage in files:
+        source_name = file_storage.filename or ""
+        original_name = telco_room_photo_filename(site, source_name)
+        suffix = Path(original_name).suffix.lower()
+        if not original_name or suffix not in ALLOWED_PHOTO_EXTENSIONS:
+            skipped.append(file_storage.filename or "unknown")
+            continue
+
+        target = unique_photo_path(site_dir, original_name)
+        file_storage.save(target)
+        uploaded.append({
+            "original_filename": source_name,
+            "filename": target.name,
+            "path": str(Path("telco_rooms") / target.name),
+            "url": photo_url(site, str(Path("telco_rooms") / target.name)),
+            "size": target.stat().st_size,
+        })
+
+    if not uploaded:
+        abort(400, "No supported image files uploaded")
+
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "uploaded": uploaded,
+        "skipped": skipped,
+        "photos": list_telco_room_photos(site),
+    })
+
+
+@app.patch("/api/telco_rooms/<path:filename>")
+@app.patch("/api/telco-room-photos/<path:filename>")
+def rename_telco_room_photo(filename):
+    site = request.form.get("site", "").strip()
+    if request.is_json:
+        site = str((request.get_json(silent=True) or {}).get("site") or site).strip()
+    source = telco_room_photo_path(site, filename)
+
+    data = request.get_json(silent=True) or {}
+    requested_name = str(data.get("filename") or request.form.get("filename") or "").strip()
+    if not requested_name:
+        abort(400, "Missing new filename")
+
+    if not Path(requested_name).suffix:
+        requested_name = f"{requested_name}{source.suffix}"
+
+    target_name = telco_room_photo_filename(site, requested_name)
+    target_suffix = Path(target_name).suffix.lower()
+    if not target_name or target_suffix not in ALLOWED_PHOTO_EXTENSIONS:
+        abort(400, "Unsupported image filename")
+
+    target_dir = telco_room_photo_directory(site)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / target_name
+    if target != source:
+        target = unique_photo_path(target_dir, target_name)
+        source.rename(target)
+
+    relative_path = target.relative_to(photo_directory(site))
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "renamed": {
+            "original_filename": filename,
+            "filename": target.name,
+            "path": str(relative_path),
+            "url": photo_url(site, str(relative_path)),
+            "size": target.stat().st_size,
+        },
+        "photos": list_telco_room_photos(site),
+    })
+
+
+@app.delete("/api/telco_rooms/<path:filename>")
+@app.delete("/api/telco-room-photos/<path:filename>")
+def delete_telco_room_photo(filename):
+    site = request.args.get("site", "").strip()
+    if request.is_json:
+        site = str((request.get_json(silent=True) or {}).get("site") or site).strip()
+    path = telco_room_photo_path(site, filename)
+    path.unlink()
+
+    return jsonify({
+        "source": "/polaris/data/site_photos",
+        "site": site,
+        "deleted": filename,
+        "photos": list_telco_room_photos(site),
     })
 
 

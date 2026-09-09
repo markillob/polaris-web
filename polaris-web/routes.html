@@ -54,7 +54,21 @@
     .nav-actions {
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
       gap: 10px;
+    }
+
+    .route-heading {
+      min-width: 0;
+      flex: 1 1 auto;
+      text-align: center;
+    }
+
+    .route-heading h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.1;
+      white-space: nowrap;
     }
 
     .home-button {
@@ -120,8 +134,22 @@
       text-align: center;
     }
 
+    .routes-summary {
+      margin: 22px 0 30px;
+      padding-bottom: 26px;
+      border-bottom: 1px solid #d8dee8;
+    }
+
+    .routes-summary-title {
+      margin: 0 0 12px;
+      color: #172033;
+      font-size: 16px;
+      font-weight: 800;
+      text-align: center;
+    }
+
     .search-bar {
-      margin: 0 0 14px;
+      margin: 28px 0 14px;
     }
 
     .search-input {
@@ -201,8 +229,12 @@
         padding-bottom: 14px;
       }
 
-      .hero {
-        margin: 36px auto 24px;
+      .route-heading {
+        text-align: left;
+      }
+
+      .nav-actions {
+        margin-left: -12px;
       }
     }
   </style>
@@ -213,21 +245,20 @@
   <main>
     <header class="topbar">
       <a class="brand" href="/polaris-web/index.html">Polaris</a>
+      <div class="route-heading" aria-labelledby="page-title">
+        <h1 id="page-title">routes</h1>
+      </div>
       <nav class="nav-actions" aria-label="Page actions">
         <a class="home-button back-button" href="/polaris-web/index.html" id="back-link">back</a>
         <a class="home-button" href="/polaris-web/index.html">home</a>
       </nav>
     </header>
 
-    <section class="hero" aria-labelledby="page-title">
-      <p class="eyebrow">Operations</p>
-      <h1 id="page-title">routes</h1>
-    </section>
-
     <div class="search-bar">
       <input class="search-input" type="search" id="routes-search" placeholder="Search all columns or use filters like site:310 fqdn:core vlan:45 subnet:10.0" autocomplete="off">
     </div>
     <p class="status" id="routes-count">Loading routes data...</p>
+    <section class="routes-summary" id="routes-summary" aria-live="polite"></section>
     <section id="routes-results"></section>
   </main>
 
@@ -235,10 +266,12 @@
     const routesSearchEl = document.getElementById("routes-search");
     const routesCountEl = document.getElementById("routes-count");
     const routesResultsEl = document.getElementById("routes-results");
+    const routesSummaryEl = document.getElementById("routes-summary");
     const pageTitleEl = document.getElementById("page-title");
     const backLinkEl = document.getElementById("back-link");
     const selectedSite = new URLSearchParams(window.location.search).get("site");
-    const routesFile = "/polaris/data/enterprise_routing.json";
+    const routesFile = "/api/enterprise_routing";
+    const routesSourceName = "enterprise_routing.db";
     const siteSorter = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
     const columns = [
       { key: "site", label: "site" },
@@ -296,7 +329,8 @@
         site: getFirstValue(row, ["site", "Site"]),
         fqdn: getFirstValue(row, ["fqdn", "FQDN", "device", "Device"]),
         vlanId: getFirstValue(row, ["vlan_id", "VLAN_ID", "vlanId", "VLAN"]),
-        subnet: getFirstValue(row, ["subnet", "Subnet", "network", "Network"])
+        subnet: getFirstValue(row, ["subnet", "Subnet", "network", "Network"]),
+        routable: getFirstValue(row, ["routable", "Routable"])
       }));
     }
 
@@ -312,6 +346,39 @@
         vlanSortValue(a.vlanId) - vlanSortValue(b.vlanId) ||
         a.subnet.localeCompare(b.subnet)
       ));
+    }
+
+    function subnetSortValue(value) {
+      const match = String(value).match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)(?:\/(\d+))?/);
+      if (!match) {
+        return null;
+      }
+
+      return {
+        address: match.slice(1, 5).reduce((total, part) => (total * 256) + Number(part), 0),
+        cidr: match[5] === undefined ? Number.MAX_SAFE_INTEGER : Number(match[5])
+      };
+    }
+
+    function sortSubnets(subnets) {
+      return [...subnets].sort((a, b) => {
+        const subnetA = subnetSortValue(a);
+        const subnetB = subnetSortValue(b);
+
+        if (subnetA && subnetB) {
+          return subnetA.address - subnetB.address || subnetA.cidr - subnetB.cidr;
+        }
+
+        if (subnetA) {
+          return -1;
+        }
+
+        if (subnetB) {
+          return 1;
+        }
+
+        return a.localeCompare(b);
+      });
     }
 
     function normalizeSearchKey(value) {
@@ -342,6 +409,23 @@
       return String(value).toLowerCase().includes(expected.toLowerCase());
     }
 
+    function columnValueMatches(value, expected, columnKey) {
+      const actual = String(value ?? "").trim().toLowerCase();
+      const wanted = String(expected ?? "").trim().toLowerCase();
+
+      if (columnKey === "vlanId") {
+        const actualNumber = Number(actual);
+        const wantedNumber = Number(wanted);
+        if (Number.isFinite(actualNumber) && Number.isFinite(wantedNumber)) {
+          return actualNumber === wantedNumber;
+        }
+
+        return actual === wanted;
+      }
+
+      return valueMatches(value, expected);
+    }
+
     function rowMatchesToken(row, token) {
       const separatorIndex = token.indexOf(":");
 
@@ -351,7 +435,7 @@
         const columnKey = getColumnKey(key);
 
         if (columnKey && value) {
-          return valueMatches(row[columnKey], value);
+          return columnValueMatches(row[columnKey], value, columnKey);
         }
       }
 
@@ -392,6 +476,71 @@
       `;
     }
 
+    function isRoutableRoute(row) {
+      return String(row.routable || "").trim().toLowerCase() === "yes";
+    }
+
+    function routeSubnetSummaries(rows) {
+      const subnetMap = new Map();
+      rows.forEach((row) => {
+        if (!isRoutableRoute(row)) {
+          return;
+        }
+
+        const subnet = String(row.subnet || "").trim();
+        if (subnet && subnet !== "-") {
+          if (!subnetMap.has(subnet)) {
+            subnetMap.set(subnet, new Set());
+          }
+
+          const device = String(row.fqdn || "").trim();
+          if (device && device !== "-") {
+            subnetMap.get(subnet).add(device);
+          }
+        }
+      });
+
+      return sortSubnets([...subnetMap.keys()]).map((subnet) => ({
+        subnet,
+        devices: [...subnetMap.get(subnet)].sort((a, b) => siteSorter.compare(a, b))
+      }));
+    }
+
+    function renderRoutesSummary(rows) {
+      const subnetSummaries = routeSubnetSummaries(rows);
+      if (subnetSummaries.length === 0) {
+        routesSummaryEl.innerHTML = `
+          <p class="routes-summary-title">unique subnets(0)</p>
+          <div class="empty">No unique subnets found.</div>
+        `;
+        return;
+      }
+
+      const subnetRows = subnetSummaries.map((summary, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(summary.subnet)}</td>
+          <td>${escapeHtml(summary.devices.join(", ") || "-")}</td>
+        </tr>
+      `).join("");
+
+      routesSummaryEl.innerHTML = `
+        <p class="routes-summary-title">unique routable subnets(${subnetSummaries.length}) from routable routes(${rows.filter(isRoutableRoute).length})</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Subnet</th>
+                <th>Devices</th>
+              </tr>
+            </thead>
+            <tbody>${subnetRows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
     function renderResults() {
       const query = routesSearchEl.value.trim();
       const visibleRows = routeRows.filter((row) => rowMatchesSearch(row, query));
@@ -399,15 +548,17 @@
         ? `Showing ${visibleRows.length} of ${routeRows.length} routes`
         : `Showing ${routeRows.length} routes`;
 
-      routesCountEl.textContent = `${countLabel} from enterprise_routing.json${routesUpdated}`;
+      routesCountEl.textContent = `${countLabel} from ${routesSourceName}${routesUpdated}`;
+      renderRoutesSummary(visibleRows);
       routesResultsEl.innerHTML = renderTable(visibleRows);
     }
 
     async function loadRoutes() {
       try {
-        const response = await fetch(routesFile, { cache: "no-store" });
+        const routesUrl = selectedSite ? `${routesFile}?site=${encodeURIComponent(selectedSite)}` : routesFile;
+        const response = await fetch(routesUrl, { cache: "no-store" });
         if (!response.ok) {
-          throw new Error(`Could not load ${routesFile} (${response.status})`);
+          throw new Error(`Could not load ${routesUrl} (${response.status})`);
         }
 
         const data = await response.json();
@@ -417,7 +568,7 @@
         renderResults();
       } catch (error) {
         routesCountEl.textContent = "Unable to load routes data.";
-        routesResultsEl.innerHTML = '<div class="error">Unable to load routes data from /polaris/data.</div>';
+        routesResultsEl.innerHTML = '<div class="error">Start the Polaris server with python3 serve_polaris.py so the page can read enterprise_routing.db.</div>';
         console.error(error);
       }
     }

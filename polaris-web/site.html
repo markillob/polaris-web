@@ -42,6 +42,31 @@
       gap: 16px;
     }
 
+    .site-heading {
+      min-width: 0;
+      flex: 1 1 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 8px 18px;
+      text-align: center;
+    }
+
+    .site-heading h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .nav-actions {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 10px;
+    }
+
     .brand,
     .home-button {
       color: #101828;
@@ -72,15 +97,14 @@
     }
 
     .hero {
-      max-width: 820px;
-      margin: 48px auto 30px;
-      text-align: center;
-    }
-
-    .page-actions {
+      max-width: 1120px;
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       justify-content: center;
-      margin: -12px 0 24px;
+      gap: 14px 24px;
+      margin: 48px auto 30px;
+      text-align: left;
     }
 
     .eyebrow {
@@ -93,7 +117,7 @@
     }
 
     h1 {
-      margin: 0 0 14px;
+      margin: 0;
       font-size: clamp(40px, 7vw, 72px);
       line-height: 1.1;
       letter-spacing: 0;
@@ -114,7 +138,7 @@
 
     .site-address {
       max-width: 720px;
-      margin: 10px auto 0;
+      margin: 0;
       color: #485568;
       font-size: 14px;
       line-height: 1.45;
@@ -158,20 +182,133 @@
       margin-bottom: 28px;
     }
 
+    .site-summary {
+      padding: 0;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.88);
+      overflow: hidden;
+    }
+
+    .site-summary-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0;
+      padding: 12px 14px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .site-summary-toggle::-webkit-details-marker {
+      display: none;
+    }
+
+    .site-summary-title {
+      flex: 0 0 auto;
+      margin: 0;
+      color: #39445a;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .site-summary-toggle-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .site-summary-hint {
+      color: #667080;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: none;
+    }
+
+    .site-summary-icon {
+      width: 24px;
+      height: 24px;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #d8dee8;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #344054;
+    }
+
+    .site-summary-icon::before {
+      width: 7px;
+      height: 7px;
+      content: "";
+      display: block;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg) translate(-1px, -1px);
+    }
+
+    .site-summary[open] .site-summary-icon {
+      transform: rotate(180deg);
+    }
+
+    .site-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 8px;
+      padding: 0 14px 14px;
+    }
+
+    .summary-pill {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .summary-pill-accent {
+      border-color: #d8dee8;
+      background: #ffffff;
+      color: #344054;
+    }
+
+    .summary-pill-label {
+      color: #667080;
+      font-weight: 700;
+    }
+
+    .summary-pill-value {
+      color: #172033;
+      font-weight: 800;
+    }
+
     .operation-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
       justify-content: center;
       margin: 0 0 28px;
     }
 
     .operation-button {
-      min-height: 40px;
+      min-height: 32px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0 18px;
+      padding: 0 12px;
       border: 1px solid #2468f2;
       border-radius: 8px;
       appearance: none;
@@ -179,6 +316,7 @@
       color: #2468f2;
       cursor: pointer;
       font: inherit;
+      font-size: 13px;
       font-weight: 800;
       line-height: 1;
       text-decoration: none;
@@ -415,6 +553,22 @@
       background: #eef3f8;
     }
 
+    .photo-caption {
+      padding: 9px 10px 11px;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .photo-caption span {
+      display: block;
+      margin-bottom: 4px;
+      color: #667080;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
     .metric-link {
       color: #2468f2;
       font-weight: 800;
@@ -425,6 +579,32 @@
     .metric-link:focus-visible {
       text-decoration: underline;
       outline: none;
+    }
+
+    .backup-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .backup-dot {
+      width: 11px;
+      height: 11px;
+      flex: 0 0 11px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+    }
+
+    .backup-dot.available {
+      background: #16a34a;
+    }
+
+    .backup-dot.missing {
+      background: #dc2626;
     }
 
     .photo-viewer {
@@ -526,6 +706,20 @@
       line-height: 1;
     }
 
+    .metric-compact {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 56px;
+      padding: 10px 12px;
+      border-color: #f59e0b;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+    }
+
     .table-wrap {
       overflow-x: auto;
       border: 1px solid #d8dee8;
@@ -579,6 +773,181 @@
       outline-offset: 2px;
     }
 
+    .inline-action {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #2468f2;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      text-align: left;
+    }
+
+    .inline-action:hover,
+    .inline-action:focus-visible {
+      text-decoration: underline;
+      outline: none;
+    }
+
+    .backup-detail td {
+      padding: 0;
+      background: #f8fafc;
+    }
+
+    .backup-content {
+      max-height: 560px;
+      margin: 0;
+      padding: 14px;
+      overflow: auto;
+      background: #ffffff;
+      color: #111827;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .counters-section {
+      margin-top: 22px;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: #f8fafc;
+      overflow: hidden;
+    }
+
+    .counters-section summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0;
+      padding: 14px 16px;
+      cursor: pointer;
+      list-style: none;
+      color: #39445a;
+      font-size: 13px;
+      font-weight: 800;
+      background: #eef3f8;
+    }
+
+    .counters-section summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .counters-section summary::after {
+      width: 9px;
+      height: 9px;
+      content: "";
+      flex: 0 0 auto;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg);
+      transition: transform 0.16s ease;
+    }
+
+    .counters-section[open] summary::after {
+      transform: rotate(225deg);
+    }
+
+    .counters-section-heading {
+      display: flex;
+      min-width: 240px;
+      flex: 1 1 auto;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .counters-section-label {
+      color: #172033;
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .counters-section-hint {
+      color: #667080;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .counters-section-count {
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .counters-section-body {
+      padding: 16px;
+    }
+
+    .counters-section-description {
+      margin: 0 0 14px;
+      color: #667080;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .interface-device {
+      margin-bottom: 14px;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      overflow: hidden;
+    }
+
+    .interface-device summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 14px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .interface-device-meta {
+      color: #667080;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .interface-device-body {
+      padding: 0 14px 14px;
+    }
+
+    .interface-row-warning td {
+      background: #fff7ed;
+    }
+
+    .interface-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 14px;
+      margin-top: 14px;
+      color: #667080;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .interface-footer span + span::before {
+      margin-right: 14px;
+      content: "|";
+      color: #a8b1c0;
+    }
+
     .sort-indicator {
       color: #667080;
       font-size: 11px;
@@ -615,7 +984,20 @@
       }
 
       .hero {
+        align-items: flex-start;
+        flex-direction: column;
         margin: 36px auto 24px;
+      }
+
+      .site-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        justify-content: flex-start;
+        text-align: left;
+      }
+
+      .nav-actions {
+        margin-left: -12px;
       }
 
       .hero-copy {
@@ -630,28 +1012,27 @@
   <main>
     <header class="topbar">
       <a class="brand" href="/polaris-web/index.html">Polaris</a>
-      <a class="home-button" href="/polaris-web/index.html">home</a>
+      <div class="site-heading" aria-labelledby="page-title">
+        <h1 id="page-title">Loading site...</h1>
+        <p class="site-address" id="site-address" hidden></p>
+      </div>
+      <nav class="nav-actions" aria-label="Page actions">
+        <a class="home-button" href="/polaris-web/index.html">home</a>
+      </nav>
     </header>
 
-    <section class="hero" aria-labelledby="page-title">
-      <p class="eyebrow">Polaris Site Detail</p>
-      <h1 id="page-title">Loading site...</h1>
-      <p class="site-address" id="site-address" hidden></p>
-    </section>
-
-    <section class="page-actions" aria-label="Page actions">
-      <a class="home-button" href="/polaris-web/index.html">home</a>
-    </section>
-
     <p class="status" id="status">Loading device inventory...</p>
-    <section class="summary" id="summary" aria-label="Site summary"></section>
+    <details class="summary site-summary" id="summary" aria-label="Site overview"></details>
 
     <section class="operation-actions" aria-label="Site operations">
-      <button class="operation-button" type="button" id="uptime-button" aria-pressed="false">device status</button>
+      <a class="operation-button" href="#" id="uptime-button">device status</a>
       <button class="operation-button" type="button" id="endpoints-button" aria-pressed="false">endpoints</button>
-      <a class="operation-button" href="#" id="endpoint-feed-link">feed</a>
+      <a class="operation-button" href="#" id="endpoint-feed-link">endpoint-feed</a>
       <a class="operation-button" href="#" id="routes-link">routes</a>
+      <button class="operation-button" type="button" id="backup-button" aria-pressed="false">backup</button>
+      <button class="operation-button" type="button" id="interfaces-button" aria-pressed="false">interfaces</button>
       <button class="operation-button" type="button" id="wireless-button" aria-pressed="false">wireless</button>
+      <a class="operation-button" href="#" id="telco-rooms-link">telco rooms</a>
       <button class="operation-button photos-button" type="button" id="photos-button" aria-pressed="false">photos</button>
     </section>
     <section class="operation-panel" id="operation-panel" aria-live="polite"></section>
@@ -662,7 +1043,7 @@
         <button class="secondary-button" type="button" id="devices-toggle" aria-expanded="true" aria-controls="devices">collapse devices</button>
       </div>
       <div class="search-bar">
-        <input class="search-input" type="search" id="device-search" placeholder="Filter devices by name, IP, serial, type, or role" autocomplete="off">
+        <input class="search-input" type="search" id="device-search" placeholder="Filter devices by name, IP, type, role, or HA" autocomplete="off">
       </div>
       <section id="devices"></section>
     </section>
@@ -707,15 +1088,22 @@
     const endpointsButtonEl = document.getElementById("endpoints-button");
     const endpointFeedLinkEl = document.getElementById("endpoint-feed-link");
     const routesLinkEl = document.getElementById("routes-link");
+    const backupButtonEl = document.getElementById("backup-button");
+    const interfacesButtonEl = document.getElementById("interfaces-button");
     const wirelessButtonEl = document.getElementById("wireless-button");
+    const telcoRoomsLinkEl = document.getElementById("telco-rooms-link");
     const photosButtonEl = document.getElementById("photos-button");
     const siteId = new URLSearchParams(window.location.search).get("site");
     const inventoryFile = "/api/inventory";
     const inventorySourceName = "inventory.db";
     const endpointsFile = "/api/enterprise_endpoints";
     const endpointsSourceName = "enterprise_endpoints.db";
+    const routesFile = "/api/enterprise_routing";
+    const backupsFile = "/api/site_backups";
+    const interfacesFile = "/api/interfaces";
     const photosFile = "/api/site_photos";
     const wirelessFloorplanFile = "/api/wireless_floorplan";
+    const siteSorter = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
     let endpointsData = null;
     let currentUptimeRows = [];
     let currentUptimeColumns = [];
@@ -729,6 +1117,17 @@
     let currentEndpointUpdated = "";
     let currentEndpointAvailableVlans = [];
     let currentEndpointSelectedVlans = new Set();
+    let currentInterfaceDevices = [];
+    let currentInterfaceColumns = [];
+    let currentInterfaceFilterColumns = [];
+    let currentInterfaceColumnAliases = {};
+    let currentInterfaceSort = { key: "interface", direction: "asc" };
+    let currentCounterSort = { key: "interface", direction: "asc" };
+    let interfaceCountersExpanded = false;
+    let currentInterfaceSourceLine = "";
+    let currentCounterDevices = [];
+    let currentCounterColumns = [];
+    let currentCounterSourceLine = "";
     let currentPhotoList = [];
     let currentPhotoIndex = 0;
     let photoTouchStartX = 0;
@@ -762,6 +1161,9 @@
       version: "osVersion",
       osversion: "osVersion",
       os_version: "osVersion",
+      uptime: "deviceUptime",
+      deviceuptime: "deviceUptime",
+      device_uptime: "deviceUptime",
       ha: "haStatus",
       hastatus: "haStatus",
       ha_status: "haStatus",
@@ -796,6 +1198,16 @@
       lastseen: "lastSeen",
       last_seen: "lastSeen"
     };
+    const interfaceCounterPairs = [
+      { key: "jumbos_rx_tx", label: "jumbos rx/tx", rx: "jumbos_rx", tx: "jumbos_tx", aliases: ["jumbos"] },
+      { key: "dropped_rx_tx", label: "dropped rx/tx", rx: "dropped_rx", tx: "dropped_tx", aliases: ["dropped"] },
+      { key: "pause_frames_rx_tx", label: "pause frames rx/tx", rx: "pause_frames_rx", tx: "pause_frames_tx", aliases: ["pause", "pause_frames"] },
+      { key: "errors_rx_tx", label: "errors rx/tx", rx: "errors_rx", tx: "errors_tx", aliases: ["errors"] },
+      { key: "crc_fcs_rx_tx", label: "crc fcs rx/tx", rx: "crc_fcs_rx", tx: "crc_fcs_tx", aliases: ["crc", "crc_fcs"] },
+      { key: "collision_rx_tx", label: "collision rx/tx", rx: "collision_rx", tx: "collision_tx", aliases: ["collision"] },
+      { key: "runts_rx_tx", label: "runts rx/tx", rx: "runts_rx", tx: "runts_tx", aliases: ["runts"] },
+      { key: "giants_rx_tx", label: "giants rx/tx", rx: "giants_rx", tx: "giants_tx", aliases: ["giants"] }
+    ];
 
     function normalizeDevices(rows) {
       return (rows || []).map((row) => ({
@@ -806,12 +1218,16 @@
         deviceRole: row.device_role || "-",
         deviceModel: row.device_model || "-",
         osVersion: row.os_version || "-",
+        deviceUptime: row.device_uptime || "",
         techRoom: row.tech_room || "-",
-        haStatus: row.ha_status || row.ha || "-",
+        haStatus: row.ha_status || row.ha || "",
         location: row.location || "-",
         access: row.access || "-",
         tag: row.tag || "-",
         tags: row.tags || "-",
+        backupConfigExists: Boolean(row.backup_config_exists),
+        backupConfigDate: row.backup_config_date || "",
+        backupConfigFile: row.backup_config_file || "",
         physicalAddress: normalizePhysicalAddress(row)
       }));
     }
@@ -909,35 +1325,59 @@
       wirelessButtonEl.textContent = `wireless(${devices.filter(isAccessPointDevice).length})`;
     }
 
+    function compareDevicesForDisplay(left, right) {
+      return (
+        Number(isAccessPointDevice(left)) - Number(isAccessPointDevice(right)) ||
+        siteSorter.compare(String(right.fqdn || ""), String(left.fqdn || ""))
+      );
+    }
+
+    function updateRoutesButton(uniqueSubnetCount = null) {
+      routesLinkEl.textContent = Number.isInteger(uniqueSubnetCount) ? `routes(${uniqueSubnetCount})` : "routes";
+    }
+
+    function updateInterfacesButton(totalInterfaces = null) {
+      interfacesButtonEl.textContent = Number.isInteger(totalInterfaces) ? `interfaces(${totalInterfaces})` : "interfaces";
+    }
+
     function renderSummary(devices, endpoints = null) {
       const deviceTypes = new Set(devices.map((device) => device.deviceType).filter((type) => type !== "-"));
       const gatewayCount = devices.filter((device) => device.deviceRole.toLowerCase().includes("gateway")).length;
       const endpointMetrics = Array.isArray(endpoints) ? endpointSummaryMetrics(endpoints) : null;
       const endpointSummary = endpointMetrics ? `
-        <article class="metric">
-          <span>endpoint vlans</span>
-          <strong><a class="metric-link" href="/vlans?site=${encodeURIComponent(siteId)}">${endpointMetrics.vlanCount}</a></strong>
-        </article>
-        <article class="metric">
-          <span>endpoint mac addresses</span>
-          <strong>${endpointMetrics.macCount}</strong>
-        </article>
+        <span class="summary-pill">
+          <span class="summary-pill-label">endpoint vlans</span>
+          <a class="metric-link summary-pill-value" href="/vlans?site=${encodeURIComponent(siteId)}">${endpointMetrics.vlanCount}</a>
+        </span>
+        <span class="summary-pill summary-pill-accent">
+          <span class="summary-pill-label">endpoint mac addresses</span>
+          <span class="summary-pill-value">${endpointMetrics.macCount}</span>
+        </span>
       ` : "";
 
       summaryEl.innerHTML = `
-        <article class="metric">
-          <span>network devices</span>
-          <strong>${devices.length}</strong>
-        </article>
-        <article class="metric">
-          <span>device types</span>
-          <strong>${deviceTypes.size}</strong>
-        </article>
-        <article class="metric">
-          <span>l3 gateways</span>
-          <strong>${gatewayCount}</strong>
-        </article>
-        ${endpointSummary}
+        <summary class="site-summary-toggle">
+          <span class="site-summary-toggle-text">
+            <span class="site-summary-title">Overview</span>
+            <span class="site-summary-hint">click to show site metrics</span>
+          </span>
+          <span class="site-summary-icon" aria-hidden="true"></span>
+        </summary>
+        <div class="site-summary-grid">
+          <span class="summary-pill">
+            <span class="summary-pill-label">network devices</span>
+            <span class="summary-pill-value">${devices.length}</span>
+          </span>
+          <span class="summary-pill">
+            <span class="summary-pill-label">device types</span>
+            <span class="summary-pill-value">${deviceTypes.size}</span>
+          </span>
+          <span class="summary-pill">
+            <span class="summary-pill-label">l3 gateways</span>
+            <span class="summary-pill-value">${gatewayCount}</span>
+          </span>
+          ${endpointSummary}
+        </div>
       `;
     }
 
@@ -951,6 +1391,45 @@
       return normalizeEndpointRows(data.endpoints || []);
     }
 
+    function getRoutesRecords(data) {
+      if (Array.isArray(data)) {
+        return data;
+      }
+
+      return data?.records || data?.routes || data?.routing || [];
+    }
+
+    function routeField(row, keys) {
+      for (const key of keys) {
+        const value = row[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          return String(value).trim();
+        }
+      }
+
+      return "";
+    }
+
+    async function loadSiteRouteSummary() {
+      const response = await fetch(`${routesFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Could not load ${routesFile} (${response.status})`);
+      }
+
+      const data = await response.json();
+      const uniqueSubnets = new Set();
+      getRoutesRecords(data).forEach((row) => {
+        const routeSite = routeField(row, ["site", "Site"]);
+        const subnet = routeField(row, ["subnet", "Subnet", "network", "Network"]);
+        const routable = routeField(row, ["routable", "Routable"]).toLowerCase();
+        if (routeSite === siteId && routable === "yes" && subnet && subnet !== "-") {
+          uniqueSubnets.add(subnet);
+        }
+      });
+
+      return uniqueSubnets.size;
+    }
+
     function deviceMatchesQuery(device, query) {
       if (!query) {
         return true;
@@ -959,23 +1438,24 @@
       return [
         device.fqdn,
         device.ipAddress,
-        device.serialNumber,
         device.deviceType,
-        device.deviceRole
+        device.deviceRole,
+        device.haStatus
       ].some((value) => String(value).toLowerCase().includes(query));
     }
 
     function renderDevices() {
       const query = deviceSearchEl.value.trim().toLowerCase();
-      const devices = siteDevices.filter((device) => deviceMatchesQuery(device, query));
+      const devices = siteDevices
+        .filter((device) => deviceMatchesQuery(device, query))
+        .sort(compareDevicesForDisplay);
 
       if (devices.length === 0) {
         devicesEl.innerHTML = query
           ? '<div class="empty">No devices match the current filter.</div>'
           : '<div class="empty">No devices found for this site.</div>';
-        statusEl.textContent = query
-          ? `0 of ${siteDevices.length} devices at site ${siteId}`
-          : `0 devices at site ${siteId}`;
+        statusEl.textContent = query ? `0 of ${siteDevices.length} devices at site ${siteId}` : "";
+        statusEl.hidden = !query;
         return;
       }
 
@@ -984,9 +1464,15 @@
           <td>${index + 1}</td>
           <td>${escapeHtml(device.fqdn)}</td>
           <td>${escapeHtml(device.ipAddress)}</td>
-          <td>${escapeHtml(device.serialNumber)}</td>
           <td>${escapeHtml(device.deviceType)}</td>
           <td>${escapeHtml(device.deviceRole)}</td>
+          <td>${escapeHtml(device.haStatus)}</td>
+          <td>
+            <span class="backup-status" title="${escapeHtml(device.backupConfigFile || (device.backupConfigExists ? "backup config found" : "backup config missing"))}">
+              <span class="backup-dot ${device.backupConfigExists ? "available" : "missing"}" aria-hidden="true"></span>
+              ${device.backupConfigExists ? `yes${device.backupConfigDate ? ` ${escapeHtml(device.backupConfigDate)}` : ""}` : "no"}
+            </span>
+          </td>
         </tr>
       `).join("");
 
@@ -998,9 +1484,10 @@
                 <th>ID</th>
                 <th>FQDN</th>
                 <th>IP Address</th>
-                <th>Serial Number</th>
-                <th>Device Type</th>
+                <th>device_type</th>
                 <th>Device Role</th>
+                <th>HA</th>
+                <th>Backup</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -1008,9 +1495,8 @@
         </div>
       `;
 
-      statusEl.textContent = query
-        ? `${devices.length} of ${siteDevices.length} devices at site ${siteId}`
-        : `${devices.length} devices at site ${siteId}`;
+      statusEl.textContent = query ? `${devices.length} of ${siteDevices.length} devices at site ${siteId}` : "";
+      statusEl.hidden = !query;
     }
 
     function setDevicesExpanded(expanded) {
@@ -1166,7 +1652,7 @@
 
     function uptimeSortValue(row, key) {
       const value = row[key] ?? "";
-      if (key !== "uptime") {
+      if (key !== "uptime" && key !== "deviceUptime") {
         return String(value);
       }
 
@@ -1214,11 +1700,7 @@
     }
 
     function uptimeSortIndicator(column) {
-      if (column.key !== currentUptimeSort.key) {
-        return "";
-      }
-
-      return currentUptimeSort.direction === "asc" ? "asc" : "desc";
+      return "";
     }
 
     function renderUptimeResults() {
@@ -1346,6 +1828,593 @@
       `;
     }
 
+    function formatFileSize(value) {
+      if (value === "" || value === null || value === undefined) {
+        return "";
+      }
+
+      const size = Number(value);
+      if (!Number.isFinite(size)) {
+        return "";
+      }
+      if (size < 1024) {
+        return `${size} B`;
+      }
+      if (size < 1024 * 1024) {
+        return `${(size / 1024).toFixed(1)} KB`;
+      }
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function renderBackupContents(data) {
+      if (!data.exists) {
+        return `<div class="empty">No backup folder found at ${escapeHtml(data.path || `/polaris/data/${siteId}`)}.</div>`;
+      }
+
+      const items = data.items || [];
+      if (items.length === 0) {
+        return `<div class="empty">No backup files matching ${escapeHtml(data.name_filter || `${siteId}*`)} found in ${escapeHtml(data.path)}.</div>`;
+      }
+
+      const rows = items.map((item, index) => {
+        const canExpand = item.type === "file" && item.url;
+        const name = item.url
+          ? `<a class="metric-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.name)}</a>`
+          : escapeHtml(item.name);
+        const action = canExpand
+          ? `<button class="inline-action" type="button" data-backup-toggle data-backup-index="${index}" data-backup-url="${escapeHtml(item.url)}" aria-expanded="false">expand</button>`
+          : "";
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${name}</td>
+            <td>${escapeHtml(item.type)}</td>
+            <td>${escapeHtml(formatFileSize(item.size))}</td>
+            <td>${escapeHtml(item.modified || "")}</td>
+            <td>${action}</td>
+          </tr>
+          <tr class="backup-detail" data-backup-detail="${index}" hidden>
+            <td colspan="6">
+              <pre class="backup-content" data-backup-content>Not loaded.</pre>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      return `
+        <p class="status">Showing ${items.length} backup file${items.length === 1 ? "" : "s"} matching ${escapeHtml(data.name_filter || `${siteId}*`)} from ${escapeHtml(data.path)}</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Modified</th>
+                <th>Contents</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function loadBackups() {
+      setActiveOperation("backup");
+      operationPanelEl.innerHTML = '<div class="empty">Loading backup contents...</div>';
+
+      try {
+        const response = await fetch(`${backupsFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Could not load ${backupsFile} (${response.status})`);
+        }
+
+        const data = await response.json();
+        operationPanelEl.innerHTML = `
+          ${submenuHeader("backup")}
+          ${renderBackupContents(data)}
+        `;
+      } catch (error) {
+        operationPanelEl.innerHTML = '<div class="error">Unable to load backup contents for this site.</div>';
+        console.error(error);
+      }
+    }
+
+    async function toggleBackupFile(button) {
+      const index = button.dataset.backupIndex;
+      const detailRow = operationPanelEl.querySelector(`[data-backup-detail="${CSS.escape(index)}"]`);
+      const contentEl = detailRow?.querySelector("[data-backup-content]");
+      if (!detailRow || !contentEl) {
+        return;
+      }
+
+      const shouldExpand = detailRow.hidden;
+      detailRow.hidden = !shouldExpand;
+      button.setAttribute("aria-expanded", String(shouldExpand));
+      button.textContent = shouldExpand ? "collapse" : "expand";
+
+      if (!shouldExpand || button.dataset.loaded === "true") {
+        return;
+      }
+
+      contentEl.textContent = "Loading file contents...";
+      try {
+        const response = await fetch(button.dataset.backupUrl, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Could not load backup file (${response.status})`);
+        }
+
+        contentEl.textContent = await response.text();
+        button.dataset.loaded = "true";
+      } catch (error) {
+        contentEl.textContent = "Unable to load this backup file.";
+        console.error(error);
+      }
+    }
+
+    function interfaceMatchesQuery(device, row, query, columns = currentInterfaceColumns) {
+      const tokens = tokenizeSearchQuery(query);
+      if (tokens.length === 0) {
+        return true;
+      }
+
+      return tokens.every((token) => {
+        const separatorIndex = token.indexOf(":");
+
+        if (separatorIndex > 0) {
+          const key = token.slice(0, separatorIndex);
+          const value = token.slice(separatorIndex + 1);
+          const columnKey = getColumnKey(key, currentInterfaceFilterColumns, currentInterfaceColumnAliases);
+
+          if (columnKey && value) {
+            const compareValue = columnKey === "delta_description"
+              ? interfaceDeltaDescription(row)
+              : interfaceCellValue(row, columnKey);
+            return interfaceColumnValueMatches(compareValue, value);
+          }
+        }
+
+        return [
+          device.device,
+          device.device_id,
+          device.file,
+          interfaceDeltaDescription(row),
+          ...columns.map((column) => interfaceCellValue(row, column.key)),
+          ...Object.values(row)
+        ].some((value) => valueMatches(value, token));
+      });
+    }
+
+    function interfaceColumnValueMatches(actual, expected) {
+      const actualText = String(actual ?? "").trim();
+      const expectedText = String(expected ?? "").trim();
+      if (/^-?\d+(?:\.\d+)?$/.test(actualText) && /^-?\d+(?:\.\d+)?$/.test(expectedText)) {
+        return Number(actualText) === Number(expectedText);
+      }
+
+      return actualText.toLowerCase().includes(expectedText.toLowerCase());
+    }
+
+    function interfaceCellValue(row, key) {
+      const pair = interfaceCounterPairs.find((entry) => entry.key === key);
+      if (!pair) {
+        return row[key] ?? "";
+      }
+
+      const rx = row[pair.rx] ?? "";
+      const tx = row[pair.tx] ?? "";
+      if (rx === "" && tx === "") {
+        return "";
+      }
+
+      return `${rx} / ${tx}`;
+    }
+
+    function parseInterfaceTimestamp(value) {
+      const text = String(value || "").trim();
+      if (!text) {
+        return null;
+      }
+
+      const parsed = new Date(text.replace(" ", "T"));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function formatInterfaceDuration(milliseconds) {
+      const totalMinutes = Math.max(0, Math.round(milliseconds / 60000));
+      const days = Math.floor(totalMinutes / 1440);
+      const hours = Math.floor((totalMinutes % 1440) / 60);
+      const minutes = totalMinutes % 60;
+      const parts = [];
+
+      if (days) {
+        parts.push(`${days} day${days === 1 ? "" : "s"}`);
+      }
+      if (hours) {
+        parts.push(`${hours} hour${hours === 1 ? "" : "s"}`);
+      }
+      if (minutes || parts.length === 0) {
+        parts.push(`${minutes} minute${minutes === 1 ? "" : "s"}`);
+      }
+
+      return parts.slice(0, 2).join(" ");
+    }
+
+    function interfaceDeltaWindow(row) {
+      const latest = parseInterfaceTimestamp(row.timestamp);
+      const previous = parseInterfaceTimestamp(row.previous_timestamp);
+      if (!latest || !previous) {
+        return "";
+      }
+
+      return formatInterfaceDuration(latest.getTime() - previous.getTime());
+    }
+
+    function interfaceDeltaDescription(row) {
+      const windowLabel = interfaceDeltaWindow(row);
+      if (!windowLabel) {
+        return "no previous timestamp available for delta comparison";
+      }
+
+      const increasedCounters = interfaceCounterPairs
+        .filter((pair) => numericCounterValue(row[pair.rx]) !== 0 || numericCounterValue(row[pair.tx]) !== 0)
+        .map((pair) => pair.aliases[0] || pair.label.replace(" rx/tx", ""));
+
+      if (increasedCounters.length === 0) {
+        return `no counter increase in the last ${windowLabel} based on the last 2 timestamps`;
+      }
+
+      return `increase on counters in the last ${windowLabel} based on the last 2 timestamps`;
+    }
+
+    function firstInterfaceRow(devices) {
+      for (const device of devices || []) {
+        const row = device.interfaces?.[0];
+        if (row) {
+          return row;
+        }
+      }
+
+      return null;
+    }
+
+    function interfaceDeltaSummary(devices) {
+      const row = firstInterfaceRow(devices);
+      return row ? interfaceDeltaDescription(row) : "no interface rows available for delta comparison";
+    }
+
+    function interfaceFooter() {
+      return `
+        <div class="interface-footer">
+          <span>${escapeHtml(interfaceDeltaSummary(currentCounterDevices))}</span>
+          <span>${escapeHtml(currentInterfaceSourceLine)}</span>
+          <span>${escapeHtml(currentCounterSourceLine)}</span>
+        </div>
+      `;
+    }
+
+    function statusSummaryForDevice(device) {
+      const summary = device.status_summary || {};
+      if (summary.up !== undefined || summary.down !== undefined) {
+        const other = Number(summary.other || 0);
+        return `up ${Number(summary.up || 0)} | down ${Number(summary.down || 0)}${other ? ` | other ${other}` : ""}`;
+      }
+
+      const counts = { up: 0, down: 0, other: 0 };
+      for (const row of device.interfaces || []) {
+        const status = String(row.status || "").trim().toLowerCase();
+        if (status === "up") {
+          counts.up += 1;
+        } else if (status === "down") {
+          counts.down += 1;
+        } else {
+          counts.other += 1;
+        }
+      }
+
+      return `up ${counts.up} | down ${counts.down}${counts.other ? ` | other ${counts.other}` : ""}`;
+    }
+
+    function interfaceStatusIsNotDown(row) {
+      return String(row.status || "").trim().toLowerCase() !== "down";
+    }
+
+    function numericCounterValue(value) {
+      const parsed = Number(String(value ?? "").trim());
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function interfaceHasCounterWarning(row) {
+      return interfaceCounterPairs.some((pair) => (
+        numericCounterValue(row[pair.rx]) !== 0 ||
+        numericCounterValue(row[pair.tx]) !== 0
+      ));
+    }
+
+    function compareInterfaceValues(left, right, key) {
+      const pair = interfaceCounterPairs.find((entry) => entry.key === key);
+      if (pair) {
+        const leftRx = numericCounterValue(left[pair.rx]);
+        const leftTx = numericCounterValue(left[pair.tx]);
+        const rightRx = numericCounterValue(right[pair.rx]);
+        const rightTx = numericCounterValue(right[pair.tx]);
+        return (
+          (leftRx + leftTx) - (rightRx + rightTx) ||
+          leftRx - rightRx ||
+          leftTx - rightTx
+        );
+      }
+
+      const leftText = String(interfaceCellValue(left, key) ?? "").trim();
+      const rightText = String(interfaceCellValue(right, key) ?? "").trim();
+      if (/^-?\d+(?:\.\d+)?$/.test(leftText) && /^-?\d+(?:\.\d+)?$/.test(rightText)) {
+        return Number(leftText) - Number(rightText);
+      }
+
+      return siteSorter.compare(leftText, rightText);
+    }
+
+    function sortedInterfaceRows(rows, options = {}) {
+      const sortState = options.sortState || currentInterfaceSort;
+      const direction = sortState.direction === "desc" ? -1 : 1;
+      return [...rows].sort((left, right) => (
+        (options.prioritizeWarnings ? Number(interfaceHasCounterWarning(right)) - Number(interfaceHasCounterWarning(left)) : 0) ||
+        (compareInterfaceValues(left, right, sortState.key) * direction) ||
+        siteSorter.compare(String(left.interface || ""), String(right.interface || ""))
+      ));
+    }
+
+    function buildInterfaceColumns(sourceColumns) {
+      const sourceSet = new Set(sourceColumns || []);
+      const used = new Set(["id", "site", "device"]);
+      const columns = [];
+
+      for (const column of ["timestamp", "previous_timestamp", "interface", "status", "admin_status", "mode", "vlan", "vlans", "description"]) {
+        if (sourceSet.has(column)) {
+          columns.push({ key: column, label: interfaceColumnLabel(column) });
+          used.add(column);
+        }
+      }
+
+      for (const pair of interfaceCounterPairs) {
+        if (sourceSet.has(pair.rx) || sourceSet.has(pair.tx)) {
+          columns.push({ key: pair.key, label: pair.label });
+          used.add(pair.rx);
+          used.add(pair.tx);
+        }
+      }
+
+      if (sourceSet.has("speed")) {
+        columns.push({ key: "speed", label: "speed" });
+        used.add("speed");
+      }
+
+      for (const column of sourceColumns || []) {
+        if (!used.has(column)) {
+          columns.push({ key: column, label: interfaceColumnLabel(column) });
+        }
+      }
+
+      return columns.length ? columns : [
+        { key: "interface", label: "interface" },
+        { key: "timestamp", label: "timestamp" }
+      ];
+    }
+
+    function renderInterfaceTable(rows, columns = currentInterfaceColumns, options = {}) {
+      if (rows.length === 0) {
+        return '<div class="empty">No interfaces match the current filter for this device.</div>';
+      }
+
+      const body = sortedInterfaceRows(rows, options).map((row) => `
+        <tr class="${options.warnCounters && interfaceHasCounterWarning(row) ? "interface-row-warning" : ""}">
+          ${columns.map((column) => `<td>${escapeHtml(interfaceCellValue(row, column.key))}</td>`).join("")}
+        </tr>
+      `).join("");
+      const headers = columns.map((column) => `
+        <th>
+          <button class="sort-button" type="button" data-interface-sort="${escapeHtml(column.key)}">
+            <span>${escapeHtml(column.label)}</span>
+          </button>
+        </th>
+      `).join("");
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>${headers}</tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function interfaceColumnLabel(column) {
+      return String(column || "").replace(/_/g, " ");
+    }
+
+    function buildInterfaceColumnAliases(columns) {
+      const aliases = {};
+      for (const column of columns) {
+        aliases[normalizeSearchKey(column.key)] = column.key;
+        aliases[normalizeSearchKey(column.label)] = column.key;
+        const pairBase = String(column.key).replace(/_?rx\/tx$/i, "").replace(/_?rx_tx$/i, "");
+        if (pairBase && pairBase !== column.key) {
+          aliases[normalizeSearchKey(pairBase)] = column.key;
+        }
+      }
+
+      for (const pair of interfaceCounterPairs) {
+        aliases[normalizeSearchKey(pair.key)] = pair.key;
+        aliases[normalizeSearchKey(pair.label)] = pair.key;
+        for (const alias of pair.aliases) {
+          aliases[normalizeSearchKey(alias)] = pair.key;
+        }
+      }
+
+      aliases.port = "interface";
+      aliases.int = "interface";
+      aliases.iface = "interface";
+      aliases.name = "interface";
+      aliases.desc = "description";
+      aliases.delta = "delta_description";
+      aliases.window = "delta_description";
+      aliases.period = "delta_description";
+      aliases.dev = "device";
+      aliases.deviceid = "device_id";
+      aliases.device_id = "device_id";
+      aliases.host = "device";
+      aliases.hostname = "device";
+      return aliases;
+    }
+
+    function renderInterfaceResults() {
+      const searchEl = document.getElementById("interface-search");
+      const countEl = document.getElementById("interface-count");
+      const resultEl = document.getElementById("interface-results");
+      const query = searchEl?.value.trim().toLowerCase() || "";
+
+      if (!resultEl || !countEl) {
+        return;
+      }
+
+      let visibleInterfaceCount = 0;
+      const visibleDevices = currentInterfaceDevices.map((device) => {
+        const rows = (device.interfaces || []).filter((row) => interfaceMatchesQuery(device, row, query, currentInterfaceColumns));
+        visibleInterfaceCount += rows.length;
+        return { ...device, visibleInterfaces: rows };
+      }).filter((device) => device.visibleInterfaces.length > 0 || !query);
+      let visibleCounterCount = 0;
+      const visibleCounterDevices = currentCounterDevices.map((device) => {
+        const rows = (device.interfaces || []).filter((row) => (
+          interfaceStatusIsNotDown(row) &&
+          interfaceMatchesQuery(device, row, query, currentCounterColumns)
+        ));
+        visibleCounterCount += rows.length;
+        return { ...device, visibleInterfaces: rows };
+      }).filter((device) => device.visibleInterfaces.length > 0);
+
+      const totalInterfaces = currentInterfaceDevices.reduce((total, device) => total + (device.interfaces || []).length, 0);
+      countEl.textContent = query
+        ? `Showing ${visibleInterfaceCount} of ${totalInterfaces} interface status rows from ${currentInterfaceDevices.length} device${currentInterfaceDevices.length === 1 ? "" : "s"}`
+        : `Showing ${totalInterfaces} interface status rows from ${currentInterfaceDevices.length} device${currentInterfaceDevices.length === 1 ? "" : "s"}`;
+
+      if (currentInterfaceDevices.length === 0) {
+        resultEl.innerHTML = `
+          <div class="empty">No interface status rows found for site ${escapeHtml(siteId)} in IFSTATE_status.db.</div>
+          ${interfaceFooter()}
+        `;
+        return;
+      }
+
+      if (visibleDevices.length === 0) {
+        resultEl.innerHTML = `
+          <div class="empty">No interface records match the current filter.</div>
+          ${interfaceFooter()}
+        `;
+        return;
+      }
+
+      const statusTables = visibleDevices.map((device, index) => `
+        <details class="interface-device" ${index === 0 ? "open" : ""}>
+          <summary>
+            <span>${escapeHtml(device.device_id || device.device || "unknown device")}</span>
+            <span class="interface-device-meta">${statusSummaryForDevice(device)} | ${device.visibleInterfaces.length} interface${device.visibleInterfaces.length === 1 ? "" : "s"} | ${escapeHtml(device.file || "")}${device.generated_at ? ` | latest ${escapeHtml(device.generated_at)}` : ""}</span>
+          </summary>
+          <div class="interface-device-body">
+            ${renderInterfaceTable(device.visibleInterfaces, currentInterfaceColumns)}
+          </div>
+        </details>
+      `).join("");
+      const counterTables = visibleCounterDevices.map((device, index) => `
+        <details class="interface-device" ${index === 0 ? "open" : ""}>
+          <summary>
+            <span>${escapeHtml(device.device || "unknown device")}</span>
+            <span class="interface-device-meta">${device.visibleInterfaces.length} interface${device.visibleInterfaces.length === 1 ? "" : "s"} | ${escapeHtml(device.file || "")}${device.generated_at ? ` | latest ${escapeHtml(device.generated_at)}` : ""}</span>
+          </summary>
+          <div class="interface-device-body">
+            ${renderInterfaceTable(device.visibleInterfaces, currentCounterColumns, {
+              warnCounters: true,
+              sortState: currentCounterSort,
+              prioritizeWarnings: currentCounterSort.key === "interface"
+            })}
+          </div>
+        </details>
+      `).join("");
+
+      resultEl.innerHTML = `
+        ${statusTables}
+        <details class="counters-section" id="interface-counters-section" ${interfaceCountersExpanded ? "open" : ""}>
+          <summary>
+            <span class="counters-section-heading">
+              <span class="counters-section-label">interface counters</span>
+              <span class="counters-section-hint">Counter deltas from IFSTATE_counters.db, excluding interfaces with status down.</span>
+            </span>
+            <span class="counters-section-count">${visibleCounterCount} interface${visibleCounterCount === 1 ? "" : "s"}</span>
+          </summary>
+          <div class="counters-section-body">
+            <p class="counters-section-description">${escapeHtml(interfaceDeltaSummary(currentCounterDevices))}</p>
+            ${counterTables || '<div class="empty">No interface counter rows found after excluding status down for this site.</div>'}
+          </div>
+        </details>
+        ${interfaceFooter()}
+      `;
+    }
+
+    async function loadInterfaces() {
+      setActiveOperation("interfaces");
+      operationPanelEl.innerHTML = '<div class="empty">Loading interface data...</div>';
+
+      try {
+        const response = await fetch(`${interfacesFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Could not load ${interfacesFile} (${response.status})`);
+        }
+
+        const data = await response.json();
+        currentInterfaceDevices = data.status_devices || [];
+        currentCounterDevices = data.devices || [];
+        const interfaceColumns = data.status_columns?.length ? data.status_columns : ["timestamp", "interface", "status", "admin_status", "mode", "vlan", "vlans", "speed", "description"];
+        const counterColumns = data.columns?.length ? data.columns : ["timestamp", "interface", "status", "speed", "description"];
+        currentInterfaceColumns = buildInterfaceColumns(interfaceColumns);
+        currentCounterColumns = buildInterfaceColumns(counterColumns);
+        currentInterfaceSort = { key: "interface", direction: "asc" };
+        currentCounterSort = { key: "interface", direction: "asc" };
+        interfaceCountersExpanded = false;
+        currentInterfaceFilterColumns = [
+          ...currentInterfaceColumns,
+          ...currentCounterColumns,
+          ...interfaceColumns.map((column) => ({ key: column, label: interfaceColumnLabel(column) })),
+          ...counterColumns.map((column) => ({ key: column, label: interfaceColumnLabel(column) })),
+          { key: "device", label: "device" },
+          { key: "device_id", label: "device_id" },
+          { key: "site", label: "site" }
+        ];
+        currentInterfaceColumnAliases = buildInterfaceColumnAliases(currentInterfaceFilterColumns);
+        currentInterfaceSourceLine = `Reading interface status from ${data.status_path || "/polaris/data/IFSTATE_status.db"}${data.status_last_updated ? `, latest ${data.status_last_updated}` : ""}`;
+        currentCounterSourceLine = `Reading interface counters from ${data.counter_path || "/polaris/data/IFSTATE_counters.db"}${data.last_updated ? `, latest ${data.last_updated}` : ""}`;
+        updateInterfacesButton(data.status_total_interfaces || 0);
+        operationPanelEl.innerHTML = `
+          ${submenuHeader("interfaces")}
+          <div class="search-bar">
+            <input class="search-input" type="search" id="interface-search" placeholder="Search all values or use filters like device:core interface:1/1 description:uplink speed:1G errors_rx:0" autocomplete="off">
+          </div>
+          <p class="status" id="interface-count"></p>
+          <div id="interface-results"></div>
+        `;
+        document.getElementById("interface-search").addEventListener("input", renderInterfaceResults);
+        renderInterfaceResults();
+      } catch (error) {
+        operationPanelEl.innerHTML = '<div class="error">Unable to load interface data for this site.</div>';
+        console.error(error);
+      }
+    }
+
     function renderTable(rows, columns, options = {}) {
       if (rows.length === 0) {
         return '<div class="empty">No records found in this file for the selected site.</div>';
@@ -1386,18 +2455,24 @@
     function setActiveOperation(kind) {
       const showingUptime = kind === "uptime";
       const showingEndpoints = kind === "endpoints";
+      const showingBackup = kind === "backup";
+      const showingInterfaces = kind === "interfaces";
       const showingWireless = kind === "wireless";
       const showingPhotos = kind === "photos";
 
       uptimeButtonEl.classList.toggle("active", showingUptime);
       endpointsButtonEl.classList.toggle("active", showingEndpoints);
+      backupButtonEl.classList.toggle("active", showingBackup);
+      interfacesButtonEl.classList.toggle("active", showingInterfaces);
       wirelessButtonEl.classList.toggle("active", showingWireless);
       photosButtonEl.classList.toggle("active", showingPhotos);
       uptimeButtonEl.setAttribute("aria-pressed", String(showingUptime));
       endpointsButtonEl.setAttribute("aria-pressed", String(showingEndpoints));
+      backupButtonEl.setAttribute("aria-pressed", String(showingBackup));
+      interfacesButtonEl.setAttribute("aria-pressed", String(showingInterfaces));
       wirelessButtonEl.setAttribute("aria-pressed", String(showingWireless));
       photosButtonEl.setAttribute("aria-pressed", String(showingPhotos));
-      siteDevicesSectionEl.hidden = showingWireless || showingEndpoints;
+      siteDevicesSectionEl.hidden = showingUptime || showingWireless || showingEndpoints || showingBackup || showingInterfaces;
     }
 
     function submenuHeader(title) {
@@ -1443,27 +2518,27 @@
         deviceRole: device.deviceRole,
         deviceModel: device.deviceModel,
         osVersion: device.osVersion,
-        haStatus: device.haStatus,
-        physicalAddress: device.physicalAddress
+        deviceUptime: device.deviceUptime,
+        haStatus: device.haStatus
       }));
       currentUptimeSort = { key: "device", direction: "asc" };
       currentUptimeColumns = [
         { key: "device", label: "Device" },
         { key: "ipAddress", label: "IP Address" },
+        { key: "deviceUptime", label: "device_uptime" },
         { key: "techRoom", label: "Tech Room" },
-        { key: "serialNumber", label: "Serial Number" },
+        { key: "serialNumber", label: "serial_number" },
         { key: "deviceType", label: "device_type" },
         { key: "deviceRole", label: "device_role" },
         { key: "deviceModel", label: "device_model" },
         { key: "osVersion", label: "os_version" },
-        { key: "haStatus", label: "ha_status" },
-        { key: "physicalAddress", label: "physical_address" }
+        { key: "haStatus", label: "HA" }
       ];
 
       operationPanelEl.innerHTML = `
         ${submenuHeader("Device Status")}
         <div class="search-bar">
-          <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like device:core serial:VN56 type:access_point role:l2" autocomplete="off">
+          <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like device:core serial:ABC type:access_point uptime:day" autocomplete="off">
         </div>
         <p class="status" id="uptime-count"></p>
         <div id="uptime-results"></div>
@@ -1569,7 +2644,6 @@
       return [
         device.fqdn,
         device.ipAddress,
-        device.serialNumber,
         device.deviceType,
         device.deviceRole,
         device.location,
@@ -1609,7 +2683,6 @@
           <td>${index + 1}</td>
           <td>${escapeHtml(device.fqdn)}</td>
           <td>${escapeHtml(device.ipAddress)}</td>
-          <td>${escapeHtml(device.serialNumber)}</td>
           <td>${escapeHtml(device.deviceType)}</td>
           <td>${escapeHtml(device.deviceRole)}</td>
           <td>${escapeHtml(device.location)}</td>
@@ -1625,8 +2698,7 @@
                 <th>ID</th>
                 <th>FQDN</th>
                 <th>IP Address</th>
-                <th>Serial Number</th>
-                <th>Device Type</th>
+                <th>device_type</th>
                 <th>Device Role</th>
                 <th>Location</th>
                 <th>Tags</th>
@@ -1786,7 +2858,7 @@
         <p class="status" id="wireless-floorplan-status" hidden></p>
         <div id="wireless-floorplan-result"></div>
         <div class="search-bar">
-          <input class="search-input" type="search" id="wireless-search" placeholder="Search wireless devices by name, IP, serial, type, role, location, or tags" autocomplete="off">
+          <input class="search-input" type="search" id="wireless-search" placeholder="Search wireless devices by name, IP, type, role, location, or tags" autocomplete="off">
         </div>
         <p class="status" id="wireless-count"></p>
         <div id="wireless-results"></div>
@@ -1805,7 +2877,7 @@
       currentPhotoList = photos;
 
       if (countEl) {
-        countEl.textContent = `showing ${photos.length} photo${photos.length === 1 ? "" : "s"} for site ${siteId} from data/site_photos`;
+        countEl.textContent = `showing ${photos.length} photo${photos.length === 1 ? "" : "s"} for site ${siteId} from data/site_photos, wireless, and telco rooms`;
       }
 
       if (!resultEl) {
@@ -1824,6 +2896,10 @@
               <button class="photo-button" type="button" data-photo-index="${index}">
                 <img src="${escapeHtml(photo.url)}" alt="site ${escapeHtml(siteId)} photo ${escapeHtml(photo.filename)}">
               </button>
+              <div class="photo-caption">
+                <span>${escapeHtml(photo.category || "site photos")}</span>
+                ${escapeHtml(photo.filename || "photo")}
+              </div>
             </article>
           `).join("")}
         </div>
@@ -1837,7 +2913,9 @@
         return;
       }
 
-      photoViewerTitleEl.textContent = photo.filename || `site ${siteId} photo`;
+      photoViewerTitleEl.textContent = photo.category
+        ? `${photo.category}: ${photo.filename || `site ${siteId} photo`}`
+        : photo.filename || `site ${siteId} photo`;
       photoViewerImageEl.src = photo.url;
       photoViewerImageEl.alt = `site ${siteId} photo ${photo.filename || currentPhotoIndex + 1}`;
       photoViewerCountEl.textContent = `${currentPhotoIndex + 1} of ${currentPhotoList.length}`;
@@ -2008,21 +3086,28 @@
 
     async function loadSite() {
       if (!siteId) {
-        pageTitleEl.textContent = "Site not selected";
+        pageTitleEl.textContent = "SITE not selected";
         updateDeviceStatusButton();
         updateEndpointsButton();
         updateWirelessButton();
+        updateRoutesButton();
+        updateInterfacesButton();
         statusEl.textContent = "Open this page from a site button on the main page.";
+        statusEl.hidden = false;
         devicesEl.innerHTML = '<div class="error">Missing site ID.</div>';
         return;
       }
 
-      pageTitleEl.textContent = `Site ${siteId}`;
+      pageTitleEl.textContent = `SITE ${siteId}`;
       updateDeviceStatusButton();
       updateEndpointsButton();
       updateWirelessButton();
+      updateRoutesButton();
+      updateInterfacesButton();
       routesLinkEl.href = `/polaris-web/routes.html?site=${encodeURIComponent(siteId)}`;
+      uptimeButtonEl.href = `/polaris-web/uptime.html?site=${encodeURIComponent(siteId)}`;
       endpointFeedLinkEl.href = `/feed?site=${encodeURIComponent(siteId)}`;
+      telcoRoomsLinkEl.href = `/polaris-web/telco_rooms.html?site=${encodeURIComponent(siteId)}`;
 
       try {
         const response = await fetch(`${inventoryFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
@@ -2046,17 +3131,38 @@
           updateEndpointsButton();
           console.error(summaryError);
         }
+        try {
+          updateRoutesButton(await loadSiteRouteSummary());
+        } catch (routeSummaryError) {
+          updateRoutesButton();
+          console.error(routeSummaryError);
+        }
+        try {
+          const interfaceResponse = await fetch(`${interfacesFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+          if (!interfaceResponse.ok) {
+            throw new Error(`Could not load ${interfacesFile} (${interfaceResponse.status})`);
+          }
+          const interfaceData = await interfaceResponse.json();
+          updateInterfacesButton(interfaceData.total_interfaces || 0);
+        } catch (interfaceSummaryError) {
+          updateInterfacesButton();
+          console.error(interfaceSummaryError);
+        }
       } catch (error) {
         updateDeviceStatusButton();
         updateWirelessButton();
+        updateRoutesButton();
+        updateInterfacesButton();
         statusEl.textContent = "Unable to load this site.";
+        statusEl.hidden = false;
         devicesEl.innerHTML = '<div class="error">Start the Polaris server with python3 serve_polaris.py so the page can read inventory.db.</div>';
         console.error(error);
       }
     }
 
-    uptimeButtonEl.addEventListener("click", loadUptime);
     endpointsButtonEl.addEventListener("click", loadEndpoints);
+    backupButtonEl.addEventListener("click", loadBackups);
+    interfacesButtonEl.addEventListener("click", loadInterfaces);
     wirelessButtonEl.addEventListener("click", loadWireless);
     photosButtonEl.addEventListener("click", loadPhotos);
     deviceSearchEl.addEventListener("input", renderDevices);
@@ -2067,11 +3173,52 @@
         return;
       }
 
+      const backupToggle = event.target.closest("[data-backup-toggle]");
+      if (backupToggle) {
+        toggleBackupFile(backupToggle);
+        return;
+      }
+
+      const interfaceSortButton = event.target.closest("[data-interface-sort]");
+      if (interfaceSortButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        const key = interfaceSortButton.dataset.interfaceSort;
+        const scrollY = window.scrollY;
+        const isCounterSort = Boolean(interfaceSortButton.closest(".counters-section"));
+        if (isCounterSort) {
+          interfaceCountersExpanded = true;
+          currentCounterSort = {
+            key,
+            direction: currentCounterSort.key === key && currentCounterSort.direction === "asc" ? "desc" : "asc"
+          };
+        } else {
+          currentInterfaceSort = {
+            key,
+            direction: currentInterfaceSort.key === key && currentInterfaceSort.direction === "asc" ? "desc" : "asc"
+          };
+        }
+        renderInterfaceResults();
+        requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+        return;
+      }
+
+      const countersSummary = event.target.closest("#interface-counters-section summary");
+      if (countersSummary && countersSummary.parentElement?.id === "interface-counters-section") {
+        const scrollY = window.scrollY;
+        requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+      }
+
       const photoButton = event.target.closest("[data-photo-index]");
       if (photoButton) {
         openPhotoViewer(Number(photoButton.dataset.photoIndex));
       }
     });
+    operationPanelEl.addEventListener("toggle", (event) => {
+      if (event.target.id === "interface-counters-section") {
+        interfaceCountersExpanded = event.target.open;
+      }
+    }, true);
     photoViewerCloseEl.addEventListener("click", closePhotoViewer);
     photoViewerPrevEl.addEventListener("click", () => movePhotoViewer(-1));
     photoViewerNextEl.addEventListener("click", () => movePhotoViewer(1));

@@ -36,9 +36,39 @@
     .topbar {
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
       min-height: 64px;
       border-bottom: 1px solid rgba(204, 213, 227, 0.75);
+      gap: 16px;
+    }
+
+    .page-heading {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .page-heading h1 {
+      margin: 0;
+      color: #101828;
+      font-size: 24px;
+      line-height: 1.1;
+      letter-spacing: 0;
+      font-weight: 800;
+    }
+
+    .page-description {
+      margin: 4px 0 0;
+      color: #485568;
+      font-size: 14px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .nav-actions {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 10px;
     }
 
     .brand {
@@ -59,12 +89,6 @@
 
     .page-footer .theme-toggle {
       margin-left: 0;
-    }
-
-    .hero {
-      max-width: 820px;
-      margin: 56px auto 34px;
-      text-align: center;
     }
 
     .eyebrow {
@@ -104,7 +128,7 @@
       flex-wrap: wrap;
       gap: 10px;
       justify-content: center;
-      margin: 0 0 28px;
+      margin: 28px 0 28px;
     }
 
     .action-button {
@@ -381,8 +405,15 @@
         padding-top: 16px;
       }
 
-      .hero {
-        margin: 36px auto 24px;
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+        justify-content: center;
+        padding-bottom: 14px;
+      }
+
+      .nav-actions {
+        margin-left: -12px;
       }
 
       .hero-copy {
@@ -400,10 +431,13 @@
 </head>
 <body>
   <main>
-    <section class="hero" aria-labelledby="page-title">
-      <p class="eyebrow">Network Visibility Tool</p>
-      <h1 id="page-title">Polaris</h1>
-    </section>
+    <header class="topbar">
+      <div class="page-heading" aria-labelledby="page-title">
+        <h1 id="page-title">Polaris</h1>
+        <p class="page-description">Network Visibility Tool</p>
+      </div>
+      <nav class="nav-actions" aria-label="Page actions" data-theme-toggle-host></nav>
+    </header>
 
     <section class="actions" aria-label="Network status actions">
       <a class="action-button" href="/polaris-web/status.html" id="status-button">status</a>
@@ -451,7 +485,6 @@
       <div id="status-results"></div>
     </section>
 
-    <footer class="page-footer" data-theme-toggle-host></footer>
   </main>
 
   <script>

@@ -41,7 +41,7 @@ The app expects these local files under `polaris/data/`:
 polaris/data/config.yaml
 polaris/data/inventory.db
 polaris/data/enterprise_endpoints.db
-polaris/data/enterprise_routing.json
+polaris/data/enterprise_routing.db
 polaris/data/site_operations.json
 polaris/data/site_photos/
 ```
@@ -60,16 +60,31 @@ site_name:
 /api/inventory
 /api/<site_id>/devices
 /api/enterprise_endpoints
+/api/enterprise_routing
+/api/interfaces
 /api/feed
 /api/endpoint_vlans
 /api/site_photos
 /api/wireless_floorplan
 /api/access_point_photos
+/api/telco_rooms
 ```
 
 ## Data Handling
 
 `polaris/data/*` is intentionally ignored by git because it can contain generated output and sensitive site data. Keep required databases and generated CSV/JSON/TXT files there when running locally.
+
+Device backup config checks read dated files from `polaris/data/<site_id>/<device_name>-<date>`, for example `polaris/data/510/510-tr-core-1-20260902.txt`. If multiple files exist for the same device, the app marks the file with the date closest to the server's current date.
+
+Interface status data is read from `polaris/data/IFSTATE_status.db`, table `ifstate_status`, and grouped by device ID with up/down interface counts. Interface counter data is read from `polaris/data/IFSTATE_counters.db`, table `ifstate_counters`; the site page compares the latest and previous timestamp per `site`, `device`, and `interface`, then displays counter deltas with negative values clamped to `0`.
+
+Uploaded photos are stored under:
+
+```text
+polaris/data/site_photos/<site_id>/
+polaris/data/site_photos/<site_id>/access_point_photos/
+polaris/data/site_photos/<site_id>/telco_rooms/
+```
 
 More detailed field requirements are documented in:
 
