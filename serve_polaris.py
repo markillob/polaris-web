@@ -100,6 +100,7 @@ INVENTORY_COLUMNS = """
     isp_circuit_id,
     ha_status,
     ha,
+    ha_enable,
     l3_gateway,
     physical_address,
     comment_01
@@ -629,6 +630,7 @@ def list_site_interfaces(site):
     if "timestamp" in display_columns:
         display_columns.insert(display_columns.index("timestamp") + 1, "previous_timestamp")
     preferred_counter_column_order = ["timestamp", "previous_timestamp", "interface", "status"]
+    hidden_counter_columns = {"jumbos_rx", "jumbos_tx", "giants_tx"}
     display_columns = [
         column
         for column in preferred_counter_column_order
@@ -636,7 +638,7 @@ def list_site_interfaces(site):
     ] + [
         column
         for column in display_columns
-        if column not in preferred_counter_column_order
+        if column not in preferred_counter_column_order and column not in hidden_counter_columns
     ]
 
     counter_columns = [

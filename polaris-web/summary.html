@@ -252,7 +252,6 @@
     const inventoryFile = "/api/inventory";
     const inventorySourceName = "inventory.db";
     const routesFile = "/api/enterprise_routing";
-    const operationsFile = "/polaris/data/site_operations.json";
 
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, (character) => ({
@@ -324,14 +323,6 @@
       }
 
       return data?.records || data?.routes || data?.routing || [];
-    }
-
-    function getOperationRecords(data) {
-      if (Array.isArray(data)) {
-        return data;
-      }
-
-      return data?.records || data?.operations || [];
     }
 
     function countRoutesBySite(records) {
@@ -423,7 +414,7 @@
 
     function countCodeVersions(records) {
       const counts = records.reduce((totals, record) => {
-        const codeVersion = String(record?.code_version ?? record?.Code_Version ?? record?.codeVersion ?? "").trim() || "Unknown";
+        const codeVersion = String(record?.os_version ?? "").trim() || "Unknown";
         totals.set(codeVersion, (totals.get(codeVersion) || 0) + 1);
         return totals;
       }, new Map());
@@ -479,10 +470,11 @@
           throw new Error(`Could not load ${inventoryFile} (${inventoryResponse.status})`);
         }
 
-        const summary = buildInventorySummary(await inventoryResponse.json());
+        const inventoryData = await inventoryResponse.json();
+        const summary = buildInventorySummary(inventoryData);
         let routeCounts = new Map();
         let totalRoutes = 0;
-        let codeVersionRows = [];
+        const codeVersionRows = countCodeVersions(inventoryData.devices || []);
 
         try {
           const routesResponse = await fetch(routesFile, { cache: "no-store" });
@@ -494,15 +486,6 @@
           }
         } catch (routesError) {
           console.warn("Unable to load route counts for summary.", routesError);
-        }
-
-        try {
-          const operationsResponse = await fetch(operationsFile, { cache: "no-store" });
-          if (operationsResponse.ok) {
-            codeVersionRows = countCodeVersions(getOperationRecords(await operationsResponse.json()));
-          }
-        } catch (operationsError) {
-          console.warn("Unable to load code version counts for summary.", operationsError);
         }
 
         renderSummary(summary, routeCounts, totalRoutes, codeVersionRows);

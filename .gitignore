@@ -39,3 +39,5 @@ polaris/data/*
 polaris/
 .DS_Store
 __pycache__/*
+*.pyc
+__pycache__/

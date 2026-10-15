@@ -250,6 +250,130 @@
       min-width: 520px;
     }
 
+    .uptime-chart-section {
+      margin: 18px 0;
+      border: 1px solid #d8dee8;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      overflow: hidden;
+      box-shadow: 0 18px 48px rgba(20, 35, 66, 0.08);
+    }
+
+    .uptime-chart-section summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      list-style: none;
+      background: #eef3f8;
+      color: #172033;
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .uptime-chart-section summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .uptime-chart-section summary::after {
+      width: 9px;
+      height: 9px;
+      content: "";
+      flex: 0 0 auto;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg);
+      transition: transform 0.16s ease;
+    }
+
+    .uptime-chart-section[open] summary::after {
+      transform: rotate(225deg);
+    }
+
+    .uptime-chart-count {
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: none;
+      white-space: nowrap;
+    }
+
+    .uptime-chart-body {
+      max-height: 620px;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .uptime-chart-note {
+      margin: 0 0 14px;
+      color: #667080;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .uptime-chart {
+      display: grid;
+      gap: 8px;
+    }
+
+    .uptime-chart-row {
+      display: grid;
+      grid-template-columns: minmax(210px, 280px) minmax(180px, 1fr) minmax(78px, auto);
+      align-items: center;
+      gap: 10px;
+    }
+
+    .uptime-chart-label {
+      min-width: 0;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .uptime-chart-label span {
+      display: block;
+      color: #667080;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .uptime-chart-track {
+      height: 14px;
+      border-radius: 999px;
+      background: #e4e9f1;
+      overflow: hidden;
+    }
+
+    .uptime-chart-bar {
+      min-width: 2px;
+      height: 100%;
+      border-radius: 999px;
+      background: #2468f2;
+    }
+
+    .uptime-chart-value {
+      color: #344054;
+      font-size: 12px;
+      font-weight: 800;
+      text-align: right;
+      white-space: nowrap;
+    }
+
     tr:last-child td {
       border-bottom: 0;
     }
@@ -287,6 +411,15 @@
       .nav-actions {
         margin-left: -12px;
       }
+
+      .uptime-chart-row {
+        grid-template-columns: 1fr;
+        gap: 5px;
+      }
+
+      .uptime-chart-value {
+        text-align: left;
+      }
     }
   </style>
   <link rel="stylesheet" href="/polaris-web/theme.css">
@@ -309,6 +442,7 @@
       <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like site:422 device:core serial:ABC type:access_point uptime:day" autocomplete="off">
     </div>
     <p class="status" id="uptime-count">Loading Device Status data...</p>
+    <button class="details-button" type="button" id="refresh-inventory">refresh</button>
     <section id="uptime-results"></section>
   </main>
 
@@ -374,6 +508,7 @@
     let uptimeRows = [];
     let uptimeUpdated = "";
     let uptimeSort = { key: "device", direction: "desc" };
+    let uptimeChartOpen = false;
     const expandedDetailKeys = new Set();
 
     function escapeHtml(value) {
@@ -449,13 +584,13 @@
           device: getFirstValue(row, ["FQDN", "fqdn", "Device", "device"]),
           ipAddress: getFirstValue(row, ["IP_Address", "ip_address", "ipAddress"]),
           techRoom: getFirstValue(row, ["Tech_Room", "tech_room", "Tech Room", "techRoom"]),
-          serialNumber: getFirstValue(row, ["Serial_Number", "Member_Serial", "serial_number"]),
+          serialNumber: row.serial_number ?? "",
           deviceType: getFirstValue(row, ["device_type", "Device_Type", "deviceType"]),
           deviceRole: getFirstValue(row, ["device_role", "Device_Role", "deviceRole"]),
-          deviceModel: getFirstValue(row, ["device_model", "Device_Model", "deviceModel"]),
-          osVersion: getFirstValue(row, ["os_version", "OS_Version", "osVersion"]),
-          deviceUptime: row.device_uptime || row.Device_Uptime || row.deviceUptime || row.uptime || "",
-          haStatus: row.ha_status || row.HA_Status || row.haStatus || row.ha || "",
+          deviceModel: row.device_model ?? "",
+          osVersion: row.os_version ?? "",
+          deviceUptime: row.device_uptime ?? "",
+          haStatus: row.ha_status ?? "",
           physicalAddress: getFirstValue(row, ["physical_address", "Physical_Address", "physicalAddress"]),
           details: row
         };
@@ -538,6 +673,112 @@
 
     function sortIndicator(column) {
       return "";
+    }
+
+    function parseDeviceUptimeHours(value) {
+      const text = String(value || "").trim().toLowerCase();
+      if (!text || text === "-") {
+        return null;
+      }
+
+      let totalHours = 0;
+      let matched = false;
+      const unitPattern = /(\d+(?:\.\d+)?)\s*(years?|yrs?|weeks?|days?|hours?|hrs?|minutes?|mins?|seconds?|secs?)\b/g;
+      for (const match of text.matchAll(unitPattern)) {
+        matched = true;
+        const amount = Number(match[1]);
+        const unit = match[2];
+        if (unit.startsWith("year") || unit.startsWith("yr")) {
+          totalHours += amount * 365 * 24;
+        } else if (unit.startsWith("week")) {
+          totalHours += amount * 7 * 24;
+        } else if (unit.startsWith("day")) {
+          totalHours += amount * 24;
+        } else if (unit.startsWith("hour") || unit.startsWith("hr")) {
+          totalHours += amount;
+        } else if (unit.startsWith("minute") || unit.startsWith("min")) {
+          totalHours += amount / 60;
+        } else if (unit.startsWith("second") || unit.startsWith("sec")) {
+          totalHours += amount / 3600;
+        }
+      }
+
+      const clockMatch = text.match(/(?:^|[,\s])(\d+):(\d{2})(?::(\d{2}))?(?:$|[,\s])/);
+      if (clockMatch) {
+        matched = true;
+        totalHours += Number(clockMatch[1]);
+        totalHours += Number(clockMatch[2]) / 60;
+        totalHours += Number(clockMatch[3] || 0) / 3600;
+      }
+
+      return matched ? totalHours : null;
+    }
+
+    function formatUptimeDuration(hours) {
+      if (!Number.isFinite(hours)) {
+        return "-";
+      }
+
+      const days = Math.floor(hours / 24);
+      const remainingHours = Math.floor(hours % 24);
+      if (days >= 1) {
+        return `${days}d ${remainingHours}h`;
+      }
+
+      const minutes = Math.round((hours % 1) * 60);
+      if (remainingHours >= 1) {
+        return `${remainingHours}h ${minutes}m`;
+      }
+
+      return `${minutes}m`;
+    }
+
+    function uptimeChartRows(rows) {
+      return rows
+        .map((row) => ({
+          ...row,
+          uptimeHours: parseDeviceUptimeHours(row.deviceUptime)
+        }))
+        .filter((row) => row.uptimeHours !== null)
+        .sort((left, right) => (
+          right.uptimeHours - left.uptimeHours ||
+          siteSorter.compare(left.site, right.site) ||
+          siteSorter.compare(left.device, right.device)
+        ));
+    }
+
+    function renderUptimeChart(rows) {
+      const chartRows = uptimeChartRows(rows);
+      const maxHours = Math.max(...chartRows.map((row) => row.uptimeHours), 0);
+      const scopeLabel = selectedSite ? `site ${selectedSite}` : "all sites";
+      const body = chartRows.map((row) => {
+        const width = maxHours > 0 ? Math.max((row.uptimeHours / maxHours) * 100, 1) : 1;
+        return `
+          <div class="uptime-chart-row">
+            <div class="uptime-chart-label" title="${escapeHtml(row.device)}">
+              ${escapeHtml(row.device)}
+              <span>${escapeHtml(row.site)} | ${escapeHtml(row.deviceType || "-")}</span>
+            </div>
+            <div class="uptime-chart-track" aria-hidden="true">
+              <div class="uptime-chart-bar" style="width: ${width.toFixed(2)}%"></div>
+            </div>
+            <div class="uptime-chart-value" title="${escapeHtml(row.deviceUptime)}">${escapeHtml(formatUptimeDuration(row.uptimeHours))}</div>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <details class="uptime-chart-section" id="uptime-chart-section" ${uptimeChartOpen ? "open" : ""}>
+          <summary>
+            <span>device uptime graph</span>
+            <span class="uptime-chart-count">${chartRows.length} device${chartRows.length === 1 ? "" : "s"}</span>
+          </summary>
+          <div class="uptime-chart-body">
+            <p class="uptime-chart-note">Uptime values from inventory.db for ${escapeHtml(scopeLabel)}. Search filters also apply to this graph.</p>
+            ${chartRows.length ? `<div class="uptime-chart">${body}</div>` : '<div class="empty">No device uptime values found for the current filter.</div>'}
+          </div>
+        </details>
+      `;
     }
 
     function renderDetailValue(value) {
@@ -638,7 +879,10 @@
         : `Showing ${uptimeRows.length} network devices`;
 
       uptimeCountEl.textContent = `${countLabel} from ${inventoryDataName}${uptimeUpdated}`;
-      uptimeResultsEl.innerHTML = renderTable(visibleRows);
+      uptimeResultsEl.innerHTML = `
+        ${renderUptimeChart(visibleRows)}
+        ${renderTable(visibleRows)}
+      `;
     }
 
     async function loadUptime() {
@@ -661,6 +905,15 @@
     }
 
     uptimeSearchEl.addEventListener("input", renderResults);
+    document.getElementById("refresh-inventory").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await loadUptime();
+      } finally {
+        button.disabled = false;
+      }
+    });
     uptimeResultsEl.addEventListener("click", (event) => {
       const detailButton = event.target.closest("[data-detail-key]");
       if (detailButton) {
@@ -686,6 +939,11 @@
       };
       renderResults();
     });
+    uptimeResultsEl.addEventListener("toggle", (event) => {
+      if (event.target.id === "uptime-chart-section") {
+        uptimeChartOpen = event.target.open;
+      }
+    }, true);
     if (selectedSite) {
       pageTitleEl.textContent = `Device Status site ${selectedSite}`;
       backLinkEl.hidden = false;

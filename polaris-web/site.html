@@ -931,6 +931,10 @@
       background: #fff7ed;
     }
 
+    .interface-row-down td {
+      background: #fff1f2;
+    }
+
     .interface-footer {
       display: flex;
       flex-wrap: wrap;
@@ -1124,6 +1128,7 @@
     let currentInterfaceSort = { key: "interface", direction: "asc" };
     let currentCounterSort = { key: "interface", direction: "asc" };
     let interfaceCountersExpanded = false;
+    let openCounterDevices = new Set();
     let currentInterfaceSourceLine = "";
     let currentCounterDevices = [];
     let currentCounterColumns = [];
@@ -1199,14 +1204,12 @@
       last_seen: "lastSeen"
     };
     const interfaceCounterPairs = [
-      { key: "jumbos_rx_tx", label: "jumbos rx/tx", rx: "jumbos_rx", tx: "jumbos_tx", aliases: ["jumbos"] },
       { key: "dropped_rx_tx", label: "dropped rx/tx", rx: "dropped_rx", tx: "dropped_tx", aliases: ["dropped"] },
       { key: "pause_frames_rx_tx", label: "pause frames rx/tx", rx: "pause_frames_rx", tx: "pause_frames_tx", aliases: ["pause", "pause_frames"] },
       { key: "errors_rx_tx", label: "errors rx/tx", rx: "errors_rx", tx: "errors_tx", aliases: ["errors"] },
       { key: "crc_fcs_rx_tx", label: "crc fcs rx/tx", rx: "crc_fcs_rx", tx: "crc_fcs_tx", aliases: ["crc", "crc_fcs"] },
       { key: "collision_rx_tx", label: "collision rx/tx", rx: "collision_rx", tx: "collision_tx", aliases: ["collision"] },
-      { key: "runts_rx_tx", label: "runts rx/tx", rx: "runts_rx", tx: "runts_tx", aliases: ["runts"] },
-      { key: "giants_rx_tx", label: "giants rx/tx", rx: "giants_rx", tx: "giants_tx", aliases: ["giants"] }
+      { key: "runts_rx_tx", label: "runts rx/tx", rx: "runts_rx", tx: "runts_tx", aliases: ["runts"] }
     ];
 
     function normalizeDevices(rows) {
@@ -2122,6 +2125,10 @@
       return String(row.status || "").trim().toLowerCase() !== "down";
     }
 
+    function interfaceIsStatusDown(row) {
+      return String(row.status || "").trim().toLowerCase() === "down";
+    }
+
     function numericCounterValue(value) {
       const parsed = Number(String(value ?? "").trim());
       return Number.isFinite(parsed) ? parsed : 0;
@@ -2161,6 +2168,7 @@
       const sortState = options.sortState || currentInterfaceSort;
       const direction = sortState.direction === "desc" ? -1 : 1;
       return [...rows].sort((left, right) => (
+        (options.prioritizeDown ? Number(interfaceIsStatusDown(right)) - Number(interfaceIsStatusDown(left)) : 0) ||
         (options.prioritizeWarnings ? Number(interfaceHasCounterWarning(right)) - Number(interfaceHasCounterWarning(left)) : 0) ||
         (compareInterfaceValues(left, right, sortState.key) * direction) ||
         siteSorter.compare(String(left.interface || ""), String(right.interface || ""))
@@ -2210,13 +2218,22 @@
       }
 
       const body = sortedInterfaceRows(rows, options).map((row) => `
-        <tr class="${options.warnCounters && interfaceHasCounterWarning(row) ? "interface-row-warning" : ""}">
+        <tr class="${[
+          options.highlightDown && interfaceIsStatusDown(row) ? "interface-row-down" : "",
+          options.warnCounters && interfaceHasCounterWarning(row) ? "interface-row-warning" : ""
+        ].filter(Boolean).join(" ")}">
           ${columns.map((column) => `<td>${escapeHtml(interfaceCellValue(row, column.key))}</td>`).join("")}
         </tr>
       `).join("");
       const headers = columns.map((column) => `
         <th>
-          <button class="sort-button" type="button" data-interface-sort="${escapeHtml(column.key)}">
+          <button
+            class="sort-button"
+            type="button"
+            data-interface-sort="${escapeHtml(column.key)}"
+            data-interface-table="${escapeHtml(options.tableType || "status")}"
+            data-interface-table-id="${escapeHtml(options.tableId || "")}"
+          >
             <span>${escapeHtml(column.label)}</span>
           </button>
         </th>
@@ -2327,12 +2344,27 @@
             <span class="interface-device-meta">${statusSummaryForDevice(device)} | ${device.visibleInterfaces.length} interface${device.visibleInterfaces.length === 1 ? "" : "s"} | ${escapeHtml(device.file || "")}${device.generated_at ? ` | latest ${escapeHtml(device.generated_at)}` : ""}</span>
           </summary>
           <div class="interface-device-body">
-            ${renderInterfaceTable(device.visibleInterfaces, currentInterfaceColumns)}
+            ${renderInterfaceTable(device.visibleInterfaces, currentInterfaceColumns, {
+              tableType: "status",
+              tableId: `status-${index}`,
+              highlightDown: true,
+              prioritizeDown: currentInterfaceSort.key === "interface"
+            })}
           </div>
         </details>
       `).join("");
-      const counterTables = visibleCounterDevices.map((device, index) => `
-        <details class="interface-device" ${index === 0 ? "open" : ""}>
+      const openCounterSet = openCounterDevices.size
+        ? openCounterDevices
+        : new Set(visibleCounterDevices.slice(0, 1).map((device) => device.device || "unknown device"));
+      const counterTables = visibleCounterDevices.map((device) => {
+        const counterDeviceId = device.device || "unknown device";
+        return `
+        <details
+          class="interface-device"
+          data-interface-device-table="counter"
+          data-interface-device-id="${escapeHtml(counterDeviceId)}"
+          ${openCounterSet.has(counterDeviceId) ? "open" : ""}
+        >
           <summary>
             <span>${escapeHtml(device.device || "unknown device")}</span>
             <span class="interface-device-meta">${device.visibleInterfaces.length} interface${device.visibleInterfaces.length === 1 ? "" : "s"} | ${escapeHtml(device.file || "")}${device.generated_at ? ` | latest ${escapeHtml(device.generated_at)}` : ""}</span>
@@ -2341,11 +2373,14 @@
             ${renderInterfaceTable(device.visibleInterfaces, currentCounterColumns, {
               warnCounters: true,
               sortState: currentCounterSort,
-              prioritizeWarnings: currentCounterSort.key === "interface"
+              prioritizeWarnings: currentCounterSort.key === "interface",
+              tableType: "counter",
+              tableId: counterDeviceId
             })}
           </div>
         </details>
-      `).join("");
+      `;
+      }).join("");
 
       resultEl.innerHTML = `
         ${statusTables}
@@ -2386,6 +2421,7 @@
         currentInterfaceSort = { key: "interface", direction: "asc" };
         currentCounterSort = { key: "interface", direction: "asc" };
         interfaceCountersExpanded = false;
+        openCounterDevices = new Set();
         currentInterfaceFilterColumns = [
           ...currentInterfaceColumns,
           ...currentCounterColumns,
@@ -3184,9 +3220,16 @@
         event.preventDefault();
         event.stopPropagation();
         const key = interfaceSortButton.dataset.interfaceSort;
-        const scrollY = window.scrollY;
+        const tableType = interfaceSortButton.dataset.interfaceTable || "status";
+        const tableId = interfaceSortButton.dataset.interfaceTableId || "";
+        const buttonTop = interfaceSortButton.getBoundingClientRect().top;
         const isCounterSort = Boolean(interfaceSortButton.closest(".counters-section"));
         if (isCounterSort) {
+          const counterDevice = interfaceSortButton.closest('[data-interface-device-table="counter"]');
+          const counterDeviceId = counterDevice?.dataset.interfaceDeviceId || "";
+          if (counterDeviceId) {
+            openCounterDevices.add(counterDeviceId);
+          }
           interfaceCountersExpanded = true;
           currentCounterSort = {
             key,
@@ -3199,7 +3242,17 @@
           };
         }
         renderInterfaceResults();
-        requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+        requestAnimationFrame(() => {
+          const replacementButton = Array.from(operationPanelEl.querySelectorAll("[data-interface-sort]")).find((button) => (
+            button.dataset.interfaceSort === key &&
+            (button.dataset.interfaceTable || "status") === tableType &&
+            (button.dataset.interfaceTableId || "") === tableId
+          ));
+          if (replacementButton) {
+            window.scrollBy({ top: replacementButton.getBoundingClientRect().top - buttonTop });
+            replacementButton.blur();
+          }
+        });
         return;
       }
 
@@ -3217,6 +3270,20 @@
     operationPanelEl.addEventListener("toggle", (event) => {
       if (event.target.id === "interface-counters-section") {
         interfaceCountersExpanded = event.target.open;
+        return;
+      }
+
+      if (event.target.matches('[data-interface-device-table="counter"]')) {
+        const counterDeviceId = event.target.dataset.interfaceDeviceId || "";
+        if (!counterDeviceId) {
+          return;
+        }
+
+        if (event.target.open) {
+          openCounterDevices.add(counterDeviceId);
+        } else {
+          openCounterDevices.delete(counterDeviceId);
+        }
       }
     }, true);
     photoViewerCloseEl.addEventListener("click", closePhotoViewer);
