@@ -252,6 +252,7 @@
     }
 
     .site-summary[open] .site-summary-icon,
+    .endpoint-table-section[open] > summary .site-summary-icon,
     #endpoint-vlan-summary[open] .site-summary-icon {
       transform: rotate(180deg);
     }
@@ -1117,6 +1118,7 @@
     let currentUptimeSort = { key: "device", direction: "asc" };
     let inventoryImportedAt = "";
     let currentEndpointRows = [];
+    let endpointGatewayNames = new Set();
     let currentEndpointVisibleRows = [];
     let currentEndpointColumns = [];
     let currentEndpointUpdated = "";
@@ -1735,6 +1737,7 @@
       const query = searchEl ? searchEl.value.trim() : "";
       const searchRows = currentEndpointRows.filter((row) => rowMatchesQuery(row, query, currentEndpointColumns, endpointColumnAliases));
       const visibleRows = searchRows.filter(endpointRowMatchesVlanSelection);
+      const onlineRows = visibleRows.filter((row) => endpointGatewayNames.has(String(row.device).trim().toLowerCase()));
       currentEndpointVisibleRows = visibleRows;
       const filterActive = endpointFiltersActive();
       const countLabel = query || filterActive
@@ -1755,7 +1758,7 @@
       const vlanSummaryEl = document.getElementById("endpoint-vlan-summary-results");
       if (vlanSummaryEl) {
         const counts = new Map();
-        for (const row of visibleRows) {
+        for (const row of onlineRows) {
           const vlan = String(row.vlan ?? "").trim() || "-";
           counts.set(vlan, (counts.get(vlan) || 0) + 1);
         }
@@ -1767,11 +1770,18 @@
             { key: "vlan", label: "VLAN" },
             { key: "endpoints", label: "Endpoints" }
           ])
-          : '<div class="empty">No endpoints match the current filters.</div>';
+          : '<div class="empty">No online devices match the current filters.</div>';
       }
 
       if (resultEl) {
         resultEl.innerHTML = renderTable(visibleRows, currentEndpointColumns);
+      }
+      const onlineEl = document.getElementById("endpoint-online-results");
+      if (onlineEl) {
+        document.getElementById("endpoint-online-count").textContent = `${onlineRows.length} endpoints found on L3 gateways`;
+        onlineEl.innerHTML = onlineRows.length
+          ? renderTable(onlineRows, currentEndpointColumns)
+          : '<div class="empty">No endpoints found on L3 gateways matching the current filters.</div>';
       }
     }
 
@@ -2621,6 +2631,15 @@
 
       try {
         const data = await getEndpointsData();
+        const inventoryResponse = await fetch(`${inventoryFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+        if (!inventoryResponse.ok) {
+          throw new Error(`Could not load inventory for site ${siteId} (${inventoryResponse.status})`);
+        }
+        const inventory = await inventoryResponse.json();
+        endpointGatewayNames = new Set((inventory.devices || [])
+          .filter((device) => String(device.device_role || "").trim().toLowerCase() === "l3_gateway")
+          .map((device) => String(device.fqdn || "").trim().toLowerCase())
+          .filter(Boolean));
         currentEndpointRows = sortEndpointRows(normalizeEndpointRows(data.endpoints || []));
         currentEndpointColumns = [
           { key: "device", label: "Device" },
@@ -2661,7 +2680,23 @@
             </summary>
             <div class="interface-device-body" id="endpoint-vlan-summary-results"></div>
           </details>
-          <div id="endpoint-results"></div>
+          <details class="interface-device endpoint-table-section" open>
+            <summary>
+              <span>Online Devices</span>
+              <span class="site-summary-icon" aria-hidden="true"></span>
+            </summary>
+            <div class="interface-device-body">
+              <p class="status" id="endpoint-online-count"></p>
+              <div id="endpoint-online-results"></div>
+            </div>
+          </details>
+          <details class="interface-device endpoint-table-section" open>
+            <summary>
+              <span>All Entries</span>
+              <span class="site-summary-icon" aria-hidden="true"></span>
+            </summary>
+            <div class="interface-device-body" id="endpoint-results"></div>
+          </details>
         `;
         renderEndpointVlanFilters();
         document.getElementById("endpoint-search").addEventListener("input", renderEndpointResults);

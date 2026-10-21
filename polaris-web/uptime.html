@@ -465,6 +465,8 @@
       { key: "deviceModel", label: "device_model" },
       { key: "osVersion", label: "os_version" },
       { key: "haStatus", label: "HA" },
+      { key: "portAvailable", label: "port_available" },
+      { key: "portInUse", label: "port_in_use" },
       { key: "detailsAction", label: "Details", action: true }
     ];
     const aliases = {
@@ -591,6 +593,8 @@
           osVersion: row.os_version ?? "",
           deviceUptime: row.device_uptime ?? "",
           haStatus: row.ha_status ?? "",
+          portAvailable: row.port_available ?? "",
+          portInUse: row.port_in_use ?? "",
           physicalAddress: getFirstValue(row, ["physical_address", "Physical_Address", "physicalAddress"]),
           details: row
         };

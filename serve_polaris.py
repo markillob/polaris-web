@@ -93,6 +93,8 @@ INVENTORY_COLUMNS = """
     device_model,
     os_version,
     device_uptime,
+    port_available,
+    port_in_use,
     env_type,
     isp_provider,
     isp_type,
