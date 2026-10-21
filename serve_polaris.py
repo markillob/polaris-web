@@ -760,10 +760,16 @@ def backup_config_info(site, device_name):
     today = datetime.now()
     candidates = []
     for path in site_dir.iterdir():
-        if not path.is_file() or not path.name.startswith(prefix):
+        if not path.is_file() or path.suffix.lower() != ".txt":
             continue
 
-        backup_datetime, backup_date = parse_backup_datetime(path.name[len(prefix):])
+        if path.stem == filename:
+            backup_datetime = datetime.fromtimestamp(path.stat().st_mtime)
+            backup_date = backup_datetime.isoformat(timespec="seconds")
+        elif path.name.startswith(prefix):
+            backup_datetime, backup_date = parse_backup_datetime(path.stem[len(prefix):])
+        else:
+            continue
         if not backup_datetime:
             continue
 
@@ -801,7 +807,7 @@ def list_site_backup_contents(site):
 
     items = []
     for path in directory.iterdir():
-        if path.name.startswith(".") or not path.is_file() or not path.name.startswith(site_id):
+        if path.name.startswith(".") or not path.is_file() or path.suffix.lower() != ".txt":
             continue
 
         stat = path.stat()
@@ -817,7 +823,7 @@ def list_site_backup_contents(site):
     return {
         "exists": True,
         "path": f"/polaris/data/{site_id}",
-        "name_filter": f"{site_id}*",
+        "name_filter": "*.txt",
         "items": sorted(items, key=lambda item: (item["type"] != "folder", item["name"].lower())),
     }
 
