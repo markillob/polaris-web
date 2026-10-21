@@ -683,22 +683,22 @@
 
       let totalHours = 0;
       let matched = false;
-      const unitPattern = /(\d+(?:\.\d+)?)\s*(years?|yrs?|weeks?|days?|hours?|hrs?|minutes?|mins?|seconds?|secs?)\b/g;
+      const unitPattern = /(\d+(?:\.\d+)?)\s*(years?|yrs?|weeks?|days?|hours?|hrs?|minutes?|mins?|seconds?|secs?|[ywdhms])(?=\d|\b)/g;
       for (const match of text.matchAll(unitPattern)) {
         matched = true;
         const amount = Number(match[1]);
         const unit = match[2];
-        if (unit.startsWith("year") || unit.startsWith("yr")) {
+        if (unit.startsWith("y")) {
           totalHours += amount * 365 * 24;
-        } else if (unit.startsWith("week")) {
+        } else if (unit.startsWith("w")) {
           totalHours += amount * 7 * 24;
-        } else if (unit.startsWith("day")) {
+        } else if (unit.startsWith("d")) {
           totalHours += amount * 24;
-        } else if (unit.startsWith("hour") || unit.startsWith("hr")) {
+        } else if (unit.startsWith("h")) {
           totalHours += amount;
-        } else if (unit.startsWith("minute") || unit.startsWith("min")) {
+        } else if (unit.startsWith("m")) {
           totalHours += amount / 60;
-        } else if (unit.startsWith("second") || unit.startsWith("sec")) {
+        } else if (unit.startsWith("s")) {
           totalHours += amount / 3600;
         }
       }
