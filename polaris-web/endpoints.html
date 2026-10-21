@@ -149,6 +149,23 @@
       margin: 0 0 22px;
     }
 
+    .summary-sort-button {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 700;
+      text-transform: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .summary-sort-button:focus-visible {
+      outline: 2px solid #2468f2;
+      outline-offset: 4px;
+    }
+
     .summary-section h2 {
       margin: 0 0 12px;
       font-size: 20px;
@@ -372,6 +389,13 @@
     const endpointsFile = "/api/enterprise_endpoints";
     const endpointsSourceName = "enterprise_endpoints.db";
     const siteSorter = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+    let summarySort = { key: "site", direction: "asc" };
+    const summaryColumns = [
+      { key: "site", label: "Site" },
+      { key: "vlans", label: "VLANs" },
+      { key: "endpoints", label: "Total Endpoints" },
+      { key: "mac_addresses", label: "Total MAC Addresses" }
+    ];
     const columns = [
       { key: "site", label: "Site" },
       { key: "device", label: "Device" },
@@ -661,7 +685,7 @@
             </article>
           </div>
           <h2>Endpoint Summary by Site</h2>
-          ${renderSummaryTable(summary.sites)}
+          <div id="site-summary-table">${renderSummaryTable(summary.sites)}</div>
         </section>
       `;
     }
@@ -671,7 +695,14 @@
         return '<div class="empty">No endpoint summary records match the current search.</div>';
       }
 
-      const body = rows.map((row) => `
+      const direction = summarySort.direction === "asc" ? 1 : -1;
+      const sorted = [...rows].sort((a, b) => {
+        const comparison = summarySort.key === "site"
+          ? siteSorter.compare(a.site, b.site)
+          : a[summarySort.key] - b[summarySort.key];
+        return comparison * direction || siteSorter.compare(a.site, b.site);
+      });
+      const body = sorted.map((row) => `
         <tr>
           <td>${escapeHtml(row.site)}</td>
           <td><a class="table-link" href="/vlans?site=${encodeURIComponent(row.site)}">${escapeHtml(row.vlans)}</a></td>
@@ -685,10 +716,13 @@
           <table>
             <thead>
               <tr>
-                <th>Site</th>
-                <th>VLANs</th>
-                <th>Total Endpoints</th>
-                <th>Total MAC Addresses</th>
+                ${summaryColumns.map((column) => `
+                  <th aria-sort="${summarySort.key === column.key ? (summarySort.direction === "asc" ? "ascending" : "descending") : "none"}">
+                    <button class="summary-sort-button" type="button" data-summary-sort="${column.key}">
+                      ${column.label}${summarySort.key === column.key ? (summarySort.direction === "asc" ? " &#9650;" : " &#9660;") : ""}
+                    </button>
+                  </th>
+                `).join("")}
               </tr>
             </thead>
             <tbody>${body}</tbody>
@@ -770,6 +804,18 @@
     }
 
     endpointsSearchEl.addEventListener("input", renderResults);
+    endpointsSummaryEl.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-summary-sort]");
+      if (!button) return;
+      const key = button.dataset.summarySort;
+      summarySort = {
+        key,
+        direction: summarySort.key === key && summarySort.direction === "asc" ? "desc" : "asc"
+      };
+      const container = document.getElementById("site-summary-table");
+      container.innerHTML = renderSummaryTable(summarizeEndpointRows(visibleEndpointRows).sites);
+      container.querySelector(`[data-summary-sort="${key}"]`).focus({ preventScroll: true });
+    });
     endpointExportEl.addEventListener("click", exportCurrentEndpointCsv);
     vlanFilterOptionsEl.addEventListener("change", (event) => {
       if (!event.target.matches('input[type="checkbox"]')) {

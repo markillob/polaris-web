@@ -251,7 +251,8 @@
       transform: rotate(45deg) translate(-1px, -1px);
     }
 
-    .site-summary[open] .site-summary-icon {
+    .site-summary[open] .site-summary-icon,
+    #endpoint-vlan-summary[open] .site-summary-icon {
       transform: rotate(180deg);
     }
 
@@ -1751,6 +1752,24 @@
         summaryEl.innerHTML = renderEndpointSummary(visibleRows);
       }
 
+      const vlanSummaryEl = document.getElementById("endpoint-vlan-summary-results");
+      if (vlanSummaryEl) {
+        const counts = new Map();
+        for (const row of visibleRows) {
+          const vlan = String(row.vlan ?? "").trim() || "-";
+          counts.set(vlan, (counts.get(vlan) || 0) + 1);
+        }
+        const vlanRows = [...counts.entries()]
+          .sort(([a], [b]) => siteSorter.compare(a, b))
+          .map(([vlan, endpoints]) => ({ vlan, endpoints }));
+        vlanSummaryEl.innerHTML = vlanRows.length
+          ? renderTable(vlanRows, [
+            { key: "vlan", label: "VLAN" },
+            { key: "endpoints", label: "Endpoints" }
+          ])
+          : '<div class="empty">No endpoints match the current filters.</div>';
+      }
+
       if (resultEl) {
         resultEl.innerHTML = renderTable(visibleRows, currentEndpointColumns);
       }
@@ -2635,6 +2654,13 @@
           </section>
           <p class="status" id="endpoint-count"></p>
           <div id="endpoint-summary"></div>
+          <details class="interface-device" id="endpoint-vlan-summary">
+            <summary>
+              <span>summary by vlan</span>
+              <span class="site-summary-icon" aria-hidden="true"></span>
+            </summary>
+            <div class="interface-device-body" id="endpoint-vlan-summary-results"></div>
+          </details>
           <div id="endpoint-results"></div>
         `;
         renderEndpointVlanFilters();
