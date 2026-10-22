@@ -167,6 +167,36 @@
       box-shadow: 0 18px 48px rgba(20, 35, 66, 0.08);
     }
 
+    .summary-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 0 12px;
+    }
+
+    .summary-tab {
+      flex: 0 0 auto;
+      padding: 10px 14px;
+      border: 1px solid #8a94a6;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+    }
+
+    .summary-tab[aria-selected="true"] {
+      background: #2468f2;
+      color: #ffffff;
+      border-color: #2468f2;
+    }
+
+    .summary-tab:focus-visible {
+      outline: 2px solid #2468f2;
+      outline-offset: 3px;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -385,7 +415,10 @@
         }
 
         addCount(deviceTypes, device.device_type, device);
-        addCount(fleetOverview, device.device_role, device);
+        const fleetCategory = String(device.device_type || "").trim().toLowerCase() === "access_point"
+          ? "access_point"
+          : device.device_role;
+        addCount(fleetOverview, fleetCategory, device);
       }
 
       const sortByCount = (a, b) => b.network_devices - a.network_devices || String(a.type || a.role).localeCompare(String(b.type || b.role));
@@ -415,13 +448,39 @@
     function countCodeVersions(records) {
       const counts = records.reduce((totals, record) => {
         const codeVersion = String(record?.os_version ?? "").trim() || "Unknown";
-        totals.set(codeVersion, (totals.get(codeVersion) || 0) + 1);
+        if (!totals.has(codeVersion)) totals.set(codeVersion, []);
+        totals.get(codeVersion).push(record);
         return totals;
       }, new Map());
 
       return [...counts.entries()]
-        .map(([code_version, devices]) => ({ code_version, devices }))
+        .map(([code_version, members]) => ({ code_version, devices: members.length, members }))
         .sort((a, b) => b.devices - a.devices || a.code_version.localeCompare(b.code_version));
+    }
+
+    function renderCodeVersions(rows) {
+      if (!rows.length) return '<div class="empty">No records found.</div>';
+      return `<div class="table-wrap"><table>
+        <thead><tr><th>Code Version</th><th>Devices</th><th>Details</th></tr></thead>
+        <tbody>${rows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.code_version)}</td>
+            <td>${row.devices}</td>
+            <td>
+              <details>
+                <summary style="cursor: pointer;" aria-label="Show devices running ${escapeHtml(row.code_version)}">...</summary>
+                ${renderJsonTable([...row.members]
+                  .sort((a, b) => String(a.site ?? "").localeCompare(String(b.site ?? ""), undefined, { numeric: true }) || String(a.fqdn ?? "").localeCompare(String(b.fqdn ?? "")))
+                  .map((device) => ({
+                    site: device.site ?? "",
+                    device: device.fqdn ?? "",
+                    ip_address: device.ip_address ?? ""
+                  })))}
+              </details>
+            </td>
+          </tr>
+        `).join("")}</tbody>
+      </table></div>`;
     }
 
     function renderSummary(summary, routeCounts = new Map(), totalRoutes = 0, codeVersionRows = []) {
@@ -432,27 +491,21 @@
         ...(summary.totals || {}),
         routes: totalRoutes
       };
+      const tabs = [
+        { id: "fleet", label: "Fleet Overview", content: renderJsonTable(summary.fleet_overview || []) },
+        { id: "types", label: "Device Types", content: renderJsonTable(summary.device_types || []) },
+        { id: "versions", label: "Code Versions", content: renderCodeVersions(codeVersionRows) },
+        { id: "sites", label: "Sites", content: renderJsonTable(sitesWithRoutes) }
+      ];
 
       summaryResultsEl.innerHTML = `
         <div class="summary-grid">
           ${renderObjectMetrics(totals)}
         </div>
-        <section class="summary-section">
-          <h3>Fleet Overview</h3>
-          ${renderJsonTable(summary.fleet_overview || [])}
-        </section>
-        <section class="summary-section">
-          <h3>Device Types</h3>
-          ${renderJsonTable(summary.device_types || [])}
-        </section>
-        <section class="summary-section">
-          <h3>Code Versions</h3>
-          ${renderJsonTable(codeVersionRows)}
-        </section>
-        <section class="summary-section">
-          <h3>Sites</h3>
-          ${renderJsonTable(sitesWithRoutes)}
-        </section>
+        <div class="summary-tabs" role="tablist" aria-label="Summary tables">
+          ${tabs.map((tab, index) => `<button type="button" class="summary-tab" role="tab" id="tab-${tab.id}" aria-controls="panel-${tab.id}" aria-selected="${index === 0}" tabindex="${index === 0 ? 0 : -1}">${tab.label}</button>`).join("")}
+        </div>
+        ${tabs.map((tab, index) => `<section class="summary-section" role="tabpanel" id="panel-${tab.id}" aria-labelledby="tab-${tab.id}" tabindex="0" ${index === 0 ? "" : "hidden"}>${tab.content}</section>`).join("")}
         <p class="status">${siteCount} site IDs</p>
         <section class="summary-section">
           <h3>Metadata</h3>
@@ -494,6 +547,31 @@
         console.error(error);
       }
     }
+
+    function selectSummaryTab(tab) {
+      summaryResultsEl.querySelectorAll('[role="tab"]').forEach((button) => {
+        const selected = button === tab;
+        button.setAttribute("aria-selected", String(selected));
+        button.tabIndex = selected ? 0 : -1;
+        document.getElementById(button.getAttribute("aria-controls")).hidden = !selected;
+      });
+    }
+
+    summaryResultsEl.addEventListener("click", (event) => {
+      const tab = event.target.closest('[role="tab"]');
+      if (tab) selectSummaryTab(tab);
+    });
+    summaryResultsEl.addEventListener("keydown", (event) => {
+      const tab = event.target.closest('[role="tab"]');
+      if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = [...summaryResultsEl.querySelectorAll('[role="tab"]')];
+      const index = tabs.indexOf(tab);
+      const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      selectSummaryTab(tabs[next]);
+      tabs[next].focus();
+    });
 
     loadSummary();
   </script>
