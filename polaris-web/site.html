@@ -1040,6 +1040,8 @@
       <button class="operation-button" type="button" id="wireless-button" aria-pressed="false">wireless</button>
       <a class="operation-button" href="#" id="telco-rooms-link">telco rooms</a>
       <button class="operation-button photos-button" type="button" id="photos-button" aria-pressed="false">photos</button>
+      <button class="operation-button" type="button" id="comments-button" aria-pressed="false">notes/comments</button>
+      <button class="operation-button" type="button" id="kpis-button" aria-pressed="false">KPIs</button>
     </section>
     <section class="operation-panel" id="operation-panel" aria-live="polite"></section>
 
@@ -1118,7 +1120,6 @@
     let currentUptimeSort = { key: "device", direction: "asc" };
     let inventoryImportedAt = "";
     let currentEndpointRows = [];
-    let endpointGatewayNames = new Set();
     let currentEndpointVisibleRows = [];
     let currentEndpointColumns = [];
     let currentEndpointUpdated = "";
@@ -1528,6 +1529,7 @@
         .filter((row) => getFirstValue(row, ["site", "Site"]) === siteId)
         .map((row) => ({
           device: getFirstValue(row, ["device_fqdn", "Device_FQDN"]),
+          arpSource: String(row.arp_source ?? "").trim(),
           hostname: getFirstValue(row, ["Hostname", "hostname"]),
           entryIp: getFirstValue(row, ["entry_ip", "Entry_IP"]),
           entryMac: getFirstValue(row, ["entry_mac", "Entry_MAC"]),
@@ -1737,7 +1739,6 @@
       const query = searchEl ? searchEl.value.trim() : "";
       const searchRows = currentEndpointRows.filter((row) => rowMatchesQuery(row, query, currentEndpointColumns, endpointColumnAliases));
       const visibleRows = searchRows.filter(endpointRowMatchesVlanSelection);
-      const onlineRows = visibleRows.filter((row) => endpointGatewayNames.has(String(row.device).trim().toLowerCase()));
       currentEndpointVisibleRows = visibleRows;
       const filterActive = endpointFiltersActive();
       const countLabel = query || filterActive
@@ -1758,7 +1759,7 @@
       const vlanSummaryEl = document.getElementById("endpoint-vlan-summary-results");
       if (vlanSummaryEl) {
         const counts = new Map();
-        for (const row of onlineRows) {
+        for (const row of visibleRows) {
           const vlan = String(row.vlan ?? "").trim() || "-";
           counts.set(vlan, (counts.get(vlan) || 0) + 1);
         }
@@ -1770,19 +1771,19 @@
             { key: "vlan", label: "VLAN" },
             { key: "endpoints", label: "Endpoints" }
           ])
-          : '<div class="empty">No online devices match the current filters.</div>';
+          : '<div class="empty">No endpoints match the current filters.</div>';
       }
 
       if (resultEl) {
         resultEl.innerHTML = renderTable(visibleRows, currentEndpointColumns);
       }
-      const onlineEl = document.getElementById("endpoint-online-results");
-      if (onlineEl) {
-        document.getElementById("endpoint-online-count").textContent = `${onlineRows.length} endpoints found on L3 gateways`;
-        onlineEl.innerHTML = onlineRows.length
-          ? renderTable(onlineRows, currentEndpointColumns)
-          : '<div class="empty">No endpoints found on L3 gateways matching the current filters.</div>';
-      }
+      document.getElementById("endpoint-export-all").disabled = visibleRows.length === 0;
+      const onlineRows = visibleRows.filter(row => String(row.arpSource ?? "").trim() !== "");
+      document.getElementById("endpoint-online-results").innerHTML = renderTable(onlineRows, [
+        ...currentEndpointColumns, { key: "arpSource", label: "ARP source" }
+      ]);
+      document.getElementById("endpoint-online-count").textContent = `online devices (${onlineRows.length})`;
+      document.getElementById("endpoint-export-online").disabled = onlineRows.length === 0;
     }
 
     function endpointFiltersActive() {
@@ -1814,11 +1815,6 @@
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-    }
-
-    function exportCurrentEndpointCsv() {
-      const filtered = endpointFiltersActive();
-      exportEndpointCsv(filtered ? currentEndpointVisibleRows : currentEndpointRows, filtered ? "filtered" : "all");
     }
 
     function renderEndpointSummary(rows) {
@@ -2518,6 +2514,10 @@
     }
 
     function setActiveOperation(kind) {
+      document.getElementById("kpis-button").classList.toggle("active", kind === "kpis");
+      document.getElementById("kpis-button").setAttribute("aria-pressed", String(kind === "kpis"));
+      document.getElementById("comments-button").classList.toggle("active", kind === "comments");
+      document.getElementById("comments-button").setAttribute("aria-pressed", String(kind === "comments"));
       const showingUptime = kind === "uptime";
       const showingEndpoints = kind === "endpoints";
       const showingBackup = kind === "backup";
@@ -2537,7 +2537,7 @@
       interfacesButtonEl.setAttribute("aria-pressed", String(showingInterfaces));
       wirelessButtonEl.setAttribute("aria-pressed", String(showingWireless));
       photosButtonEl.setAttribute("aria-pressed", String(showingPhotos));
-      siteDevicesSectionEl.hidden = showingUptime || showingWireless || showingEndpoints || showingBackup || showingInterfaces;
+      siteDevicesSectionEl.hidden = showingUptime || showingWireless || showingEndpoints || showingBackup || showingInterfaces || kind === "comments" || kind === "kpis";
     }
 
     function submenuHeader(title) {
@@ -2626,20 +2626,12 @@
     }
 
     async function loadEndpoints() {
+      currentEndpointVisibleRows = [];
       setActiveOperation("endpoints");
       operationPanelEl.innerHTML = '<div class="empty">Loading Endpoints data...</div>';
 
       try {
         const data = await getEndpointsData();
-        const inventoryResponse = await fetch(`${inventoryFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
-        if (!inventoryResponse.ok) {
-          throw new Error(`Could not load inventory for site ${siteId} (${inventoryResponse.status})`);
-        }
-        const inventory = await inventoryResponse.json();
-        endpointGatewayNames = new Set((inventory.devices || [])
-          .filter((device) => String(device.device_role || "").trim().toLowerCase() === "l3_gateway")
-          .map((device) => String(device.fqdn || "").trim().toLowerCase())
-          .filter(Boolean));
         currentEndpointRows = sortEndpointRows(normalizeEndpointRows(data.endpoints || []));
         currentEndpointColumns = [
           { key: "device", label: "Device" },
@@ -2659,7 +2651,6 @@
             <div class="search-bar" style="flex: 1; margin-bottom: 0;">
               <input class="search-input" type="search" id="endpoint-search" placeholder="Search all columns or use filters like hostname:AP114 vlan:45 status:true last_seen:2026" autocomplete="off">
             </div>
-            <button class="secondary-button" type="button" id="endpoint-export">export csv</button>
           </div>
           <section class="vlan-filter-panel" id="endpoint-vlan-filter-panel" aria-label="VLAN filter" hidden>
             <div class="vlan-filter-header">
@@ -2671,7 +2662,6 @@
             </div>
             <div class="vlan-filter-options" id="endpoint-vlan-filter-options"></div>
           </section>
-          <p class="status" id="endpoint-count"></p>
           <div id="endpoint-summary"></div>
           <details class="interface-device" id="endpoint-vlan-summary">
             <summary>
@@ -2682,11 +2672,13 @@
           </details>
           <details class="interface-device endpoint-table-section" open>
             <summary>
-              <span>Online Devices</span>
+              <span id="endpoint-online-count">online devices</span>
               <span class="site-summary-icon" aria-hidden="true"></span>
             </summary>
             <div class="interface-device-body">
-              <p class="status" id="endpoint-online-count"></p>
+              <div class="panel-actions">
+                <button class="secondary-button" type="button" id="endpoint-export-online" disabled>export to csv</button>
+              </div>
               <div id="endpoint-online-results"></div>
             </div>
           </details>
@@ -2695,12 +2687,23 @@
               <span>All Entries</span>
               <span class="site-summary-icon" aria-hidden="true"></span>
             </summary>
-            <div class="interface-device-body" id="endpoint-results"></div>
+            <div class="interface-device-body">
+              <div class="panel-actions">
+                <button class="secondary-button" type="button" id="endpoint-export-all" disabled>export to csv</button>
+              </div>
+              <div id="endpoint-results"></div>
+            </div>
           </details>
+          <footer>
+            <p class="status" id="endpoint-count"></p>
+          </footer>
         `;
         renderEndpointVlanFilters();
         document.getElementById("endpoint-search").addEventListener("input", renderEndpointResults);
-        document.getElementById("endpoint-export").addEventListener("click", exportCurrentEndpointCsv);
+        document.getElementById("endpoint-export-all").addEventListener("click", () => exportEndpointCsv(currentEndpointVisibleRows, "all"));
+        document.getElementById("endpoint-export-online").addEventListener("click", () => exportEndpointCsv(
+          currentEndpointVisibleRows.filter(row => String(row.arpSource ?? "").trim() !== ""), "online"
+        ));
         document.getElementById("endpoint-vlan-filter-options").addEventListener("change", (event) => {
           if (!event.target.matches('input[type="checkbox"]')) {
             return;
@@ -3257,6 +3260,186 @@
       }
     }
 
+    function renderKpiTables(data) {
+      const display = value => value === null || value === undefined ? "no data" : value;
+      const endpointFields = ["ep_with_ip", "ep_no_ip", "available", "util_pct"];
+      const vlans = [...data.vlans].sort((a, b) => siteSorter.compare(String(a.vlan_id), String(b.vlan_id)) || siteSorter.compare(a.subnet || "", b.subnet || ""));
+      const rows = vlans.map(row => {
+        const result = Object.fromEntries(Object.entries(row).map(([key, value]) => [key, display(value)]));
+        for (const field of endpointFields) {
+          result[field] = Number(row.has_ep_data) === 1 ? display(row[field]) : "no data";
+        }
+        if (result.util_pct !== "no data") result.util_pct = `${Number(result.util_pct).toFixed(1)}%`;
+        result.status = Number(row.has_ep_data) === 1 ? "data available" : "no data";
+        return result;
+      });
+      const total = field => {
+        const values = vlans.filter(row => (!endpointFields.includes(field) || Number(row.has_ep_data) === 1) && row[field] != null);
+        if (!values.length) return "no data";
+        const sum = values.reduce((sum, row) => sum + Number(row[field]), 0);
+        return `${sum}${values.length < vlans.length ? " (partial)" : ""}`;
+      };
+      const interfaces = [...data.interfaces].sort((a, b) => siteSorter.compare(a.device || "", b.device || "") || siteSorter.compare(a.interface || "", b.interface || ""))
+        .map(row => ({ ...row, description: row.description ?? "", vlan: row.vlan ?? "", speed: "100 Mbps" }));
+      return `
+        ${data.missing_tables.length ? `<div class="empty">Not yet collected: ${escapeHtml(data.missing_tables.join(", "))}. Run the KPI collector to create these tables.</div>` : ""}
+        <details class="interface-device" open>
+          <summary><span>VLAN endpoint utilization (${rows.length})</span><span class="site-summary-icon" aria-hidden="true"></span></summary>
+          <div class="interface-device-body">
+            ${rows.length ? renderTable(rows, [
+              { key: "vlan_id", label: "VLAN" }, { key: "subnet", label: "Subnet" },
+              { key: "max_hosts", label: "Max hosts" }, { key: "ep_with_ip", label: "EP with IP" },
+              { key: "ep_no_ip", label: "EP no IP" }, { key: "available", label: "Available" },
+              { key: "util_pct", label: "Util %" }, { key: "status", label: "Data status" },
+              { key: "device_types", label: "Device types" }
+            ], { sortable: true, sortPrefix: "kpi", sortIndicator: () => "\u2195" }) : '<div class="empty">No VLAN utilization rows for this snapshot.</div>'}
+            <p>VLAN rows: ${rows.length} | EP with IP: ${total("ep_with_ip")} | EP no IP: ${total("ep_no_ip")} | Max hosts: ${total("max_hosts")} | Available: ${total("available")}</p>
+          </div>
+        </details>
+        <details class="interface-device" open>
+          <summary><span>100 Mbps interfaces (up): ${interfaces.length}</span><span class="site-summary-icon" aria-hidden="true"></span></summary>
+          <div class="interface-device-body">
+            ${interfaces.length ? renderTable(interfaces, [
+              { key: "device", label: "Device" }, { key: "interface", label: "Interface" },
+              { key: "speed", label: "Speed" }, { key: "vlan", label: "VLAN" },
+              { key: "description", label: "Description" }
+            ], { sortable: true, sortPrefix: "kpi", sortIndicator: () => "\u2195" }) : '<div class="empty">No 100 Mbps interface rows recorded for this snapshot.</div>'}
+          </div>
+        </details>
+        <p class="status">Reading IFSTATE_status.db | Snapshot: ${escapeHtml(data.queried_at || "none")} | ${rows.length} VLAN rows | ${interfaces.length} 100 Mbps rows</p>`;
+    }
+
+    function compareKpiCells(left, right, key, direction) {
+      const missing = value => !value.trim() || value === "no data";
+      if (missing(left) || missing(right)) return Number(missing(left)) - Number(missing(right));
+      const numeric = ["vlan_id", "max_hosts", "ep_with_ip", "ep_no_ip", "available", "util_pct", "speed"];
+      const order = numeric.includes(key)
+        ? parseFloat(left) - parseFloat(right)
+        : siteSorter.compare(left, right);
+      return order * (direction === "descending" ? -1 : 1);
+    }
+
+    async function loadKpis() {
+      if (!siteId) return;
+      setActiveOperation("kpis");
+      operationPanelEl.innerHTML = `${submenuHeader("KPIs")}
+        <div class="panel-actions"><label for="kpi-snapshot">snapshot</label>
+        <select id="kpi-snapshot" disabled></select>
+        <button type="button" class="secondary-button" id="kpi-refresh">refresh latest</button></div>
+        <p id="kpi-message" role="status"></p><div id="kpi-results"></div>`;
+      const select = document.getElementById("kpi-snapshot");
+      const refresh = document.getElementById("kpi-refresh");
+      const result = document.getElementById("kpi-results");
+      const message = document.getElementById("kpi-message");
+      result.addEventListener("click", event => {
+        const button = event.target.closest("[data-kpi-sort]");
+        if (!button) return;
+        const header = button.closest("th");
+        const table = button.closest("table");
+        const direction = header.getAttribute("aria-sort") === "ascending" ? "descending" : "ascending";
+        const index = header.cellIndex;
+        const tbody = table.tBodies[0];
+        const rows = [...tbody.rows].sort((a, b) => compareKpiCells(
+          a.cells[index].textContent, b.cells[index].textContent, button.dataset.kpiSort, direction
+        ));
+        // Keep the existing table and header in place to preserve focus and scroll.
+        tbody.append(...rows);
+        table.querySelectorAll("th").forEach(th => {
+          th.removeAttribute("aria-sort");
+          th.querySelector(".sort-indicator").textContent = "\u2195";
+        });
+        header.setAttribute("aria-sort", direction);
+        button.querySelector(".sort-indicator").textContent = direction === "ascending" ? "\u25b2" : "\u25bc";
+      });
+      const load = async (timestamp = "") => {
+        select.disabled = true;
+        refresh.disabled = true;
+        message.textContent = "Loading KPIs...";
+        result.innerHTML = "";
+        try {
+          const params = new URLSearchParams({ site: siteId });
+          if (timestamp) params.set("queried_at", timestamp);
+          const response = await fetch(`/api/site_kpis?${params}`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || `Unable to load KPIs (${response.status})`);
+          select.innerHTML = data.snapshots.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+          select.value = data.queried_at;
+          result.innerHTML = renderKpiTables(data);
+          message.textContent = data.snapshots.length ? "" : "No KPI snapshots recorded for this site.";
+        } catch (error) {
+          message.textContent = error.message;
+        } finally {
+          select.disabled = select.options.length === 0;
+          refresh.disabled = false;
+        }
+      };
+      select.addEventListener("change", () => load(select.value));
+      refresh.addEventListener("click", () => load());
+      await load();
+    }
+
+    document.getElementById("kpis-button").addEventListener("click", loadKpis);
+
+    async function loadComments() {
+      if (!siteId) return;
+      setActiveOperation("comments");
+      operationPanelEl.innerHTML = `${submenuHeader("notes/comments")}
+        <form id="site-comment-form">
+          <label for="site-comment-text">add a note</label>
+          <textarea class="search-input" id="site-comment-text" rows="5" maxlength="10000" required style="display: block; padding: 12px; resize: vertical; margin: 8px 0;"></textarea>
+          <button class="secondary-button" type="submit">save comment</button>
+          <p id="comment-status" role="status"></p>
+        </form>
+        <div id="site-comment-list">Loading comments...</div>`;
+      const form = document.getElementById("site-comment-form");
+      const input = document.getElementById("site-comment-text");
+      const status = document.getElementById("comment-status");
+      const list = document.getElementById("site-comment-list");
+      const url = `/api/site_comments?site=${encodeURIComponent(siteId)}`;
+      let comments = [];
+      const render = () => {
+        list.innerHTML = comments.map(comment => `<article style="padding: 16px 0; border-top: 1px solid #8892a0;">
+          <time datetime="${escapeHtml(comment.created_at)}">${escapeHtml(new Date(comment.created_at).toLocaleString())}</time>
+          <p style="white-space: pre-wrap; overflow-wrap: anywhere;">${escapeHtml(comment.text)}</p>
+        </article>`).join("") || '<div class="empty">No comments yet.</div>';
+      };
+      const submit = form.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (submit.disabled) return;
+        if (!input.value.trim()) {
+          status.textContent = "Enter a comment first.";
+          return;
+        }
+        submit.disabled = true;
+        status.textContent = "Saving...";
+        try {
+          const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: input.value }) });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "Unable to save comment.");
+          comments.unshift(data);
+          render();
+          input.value = "";
+          status.textContent = "Comment saved.";
+        } catch (error) {
+          status.textContent = error.message || "Unable to save comment. Your text has been kept.";
+        } finally {
+          submit.disabled = false;
+        }
+      });
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Unable to load comments (${response.status}).`);
+        comments = (await response.json()).comments;
+        render();
+        submit.disabled = false;
+      } catch (error) {
+        list.textContent = `${error.message} Reopen notes/comments to retry; restart the server if this is a new installation.`;
+      }
+    }
+
+    document.getElementById("comments-button").addEventListener("click", loadComments);
     endpointsButtonEl.addEventListener("click", loadEndpoints);
     backupButtonEl.addEventListener("click", loadBackups);
     interfacesButtonEl.addEventListener("click", loadInterfaces);

@@ -210,6 +210,33 @@ subnet: subnet
 routable: routable
 ```
 
+### Site KPIs
+
+The per-site **KPIs** button reads `kpi_vlan_utilization` and
+`kpi_100mbps_interfaces` from `polaris/data/IFSTATE_status.db`. The collector
+creates these tables; the webserver only reads them. The latest timestamp for
+the selected site is shown initially. Use the snapshot selector to inspect
+previous runs. Both tables use the exact selected timestamp; older interface
+rows are never carried forward into a newer run. An empty table means no rows
+were recorded for that snapshot, not proof that collection succeeded.
+
+NULL endpoint metrics and `has_ep_data=0` display as **no data**; incomplete
+totals are marked **partial**. No utilization warning thresholds are assumed.
+API: `GET /api/site_kpis?site=410`, optionally with `queried_at=<timestamp>`.
+Restart the server after installing the new API route.
+
+### Site Comments
+
+Each site has a **notes/comments** button for adding notes and viewing timestamped
+history. Comments are saved as individual JSON files in
+`polaris/data/<site_id>/comments/`. Include this directory when backing up or
+migrating site data, and grant the server write access. Comments are limited to
+10,000 characters and displayed newest first. The API is
+`GET /api/site_comments?site=<site_id>` and `POST` to the same URL with
+`{"text": "Your note"}`. Restart the server after installing this feature.
+Like the rest of the app, this feature does not provide authentication; restrict
+access to trusted users or use an authenticated proxy.
+
 ### SSH Status CSV
 
 The home status panel expects:

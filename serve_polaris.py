@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import re
+import json
 import sqlite3
+from uuid import uuid4
 from argparse import ArgumentParser
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -221,8 +223,10 @@ def read_endpoint_rows(site_filter=""):
 
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
+        endpoint_columns = {row["name"] for row in conn.execute("PRAGMA table_info(endpoints)")}
+        arp_source_column = 'arp_source' if 'arp_source' in endpoint_columns else "'' AS arp_source"
         rows = conn.execute(f"""
-            SELECT {ENDPOINT_COLUMNS}
+            SELECT {ENDPOINT_COLUMNS}, {arp_source_column}
             FROM endpoints
             {where_clause}
             ORDER BY
@@ -1325,6 +1329,14 @@ def root():
     return redirect("/polaris-web/index.html")
 
 
+@app.get("/favicon.ico")
+@app.get("/apple-touch-icon.png")
+@app.get("/apple-touch-icon-precomposed.png")
+def browser_icon():
+    # Browsers request these automatically even when no icon is configured.
+    return "", 204
+
+
 @app.get("/api/config")
 def app_config():
     config = read_config()
@@ -1446,6 +1458,107 @@ def inventory():
         "total": len(rows),
         "devices": rows,
     })
+
+
+@app.get("/api/vlan_mac_counts")
+def vlan_mac_counts():
+    site = request.args.get("site", "").strip()
+    if not IFSTATE_STATUS_DB_PATH.is_file():
+        abort(404, "IFSTATE_status.db not found")
+    try:
+        with sqlite3.connect(IFSTATE_STATUS_DB_PATH.as_uri() + "?mode=ro", uri=True) as conn:
+            conn.row_factory = sqlite3.Row
+            query = "SELECT id, site, device, vlan_id, vlan_name, entries, queried_at FROM vlan_mac_counts"
+            params = []
+            if site:
+                query += " WHERE site = ?"
+                params.append(site)
+            query += " ORDER BY site, device, CAST(vlan_id AS INTEGER), vlan_id"
+            rows = [dict(row) for row in conn.execute(query, params)]
+    except sqlite3.Error as error:
+        abort(500, f"Unable to read VLAN MAC counts: {error}")
+    return jsonify({"source": "/polaris/data/IFSTATE_status.db", "site": site,
+                    "total": len(rows), "counts": rows})
+
+
+@app.get("/api/site_kpis")
+def site_kpis():
+    site = request.args.get("site", "").strip()
+    if not site:
+        abort(400, "Missing site")
+    if not IFSTATE_STATUS_DB_PATH.is_file():
+        abort(404, "IFSTATE_status.db not found")
+    definitions = {
+        "kpi_vlan_utilization": "queried_at, site, vlan_id, subnet, max_hosts, ep_with_ip, ep_no_ip, available, util_pct, has_ep_data, device_types",
+        "kpi_100mbps_interfaces": "queried_at, site, device, interface, description, vlan",
+    }
+    try:
+        with sqlite3.connect(IFSTATE_STATUS_DB_PATH.resolve().as_uri() + "?mode=ro", uri=True) as conn:
+            conn.row_factory = sqlite3.Row
+            tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            missing = [table for table in definitions if table not in tables]
+            timestamps = set()
+            for table in definitions:
+                if table in tables:
+                    timestamps.update(row[0] for row in conn.execute(
+                        f"SELECT DISTINCT queried_at FROM {table} WHERE site = ? AND queried_at IS NOT NULL AND queried_at != ''", (site,)))
+            snapshots = sorted(timestamps, reverse=True)
+            selected = request.args.get("queried_at", "").strip() or (snapshots[0] if snapshots else "")
+            if selected and selected not in timestamps:
+                abort(404, "KPI snapshot not found for this site")
+            results = {}
+            for table, columns in definitions.items():
+                results[table] = [dict(row) for row in conn.execute(
+                    f"SELECT {columns} FROM {table} WHERE site = ? AND queried_at = ?", (site, selected)
+                )] if table in tables and selected else []
+    except sqlite3.Error as error:
+        abort(500, f"Unable to read KPI data: {error}")
+    return jsonify({"site": site, "source": "/polaris/data/IFSTATE_status.db",
+                    "snapshots": snapshots, "queried_at": selected, "missing_tables": missing,
+                    "vlans": results["kpi_vlan_utilization"],
+                    "interfaces": results["kpi_100mbps_interfaces"]})
+
+
+@app.route("/api/site_comments", methods=["GET", "POST"])
+def site_comments():
+    site = request.args.get("site", "").strip()
+    site_id = safe_site_id(site)
+    if site_id != site:
+        abort(400, "Invalid site ID")
+    directory = DATA_ROOT / site_id / "comments"
+    if not directory.resolve().is_relative_to(DATA_ROOT.resolve()):
+        abort(400, "Invalid comments directory")
+    try:
+        if request.method == "POST":
+            payload = request.get_json(silent=True)
+            text = payload.get("text") if isinstance(payload, dict) else None
+            if not isinstance(text, str) or not text.strip():
+                abort(400, "Comment cannot be empty")
+            if len(text) > 10000:
+                abort(400, "Comments must be 10,000 characters or fewer")
+            comment = {"id": uuid4().hex, "site": site_id, "text": text.strip(),
+                       "created_at": datetime.now(timezone.utc).isoformat()}
+            directory.mkdir(parents=True, exist_ok=True)
+            temporary = directory / (comment["id"] + ".tmp")
+            try:
+                with temporary.open("x", encoding="utf-8") as handle:
+                    json.dump(comment, handle, ensure_ascii=True)
+                temporary.replace(directory / (comment["id"] + ".json"))
+            finally:
+                temporary.unlink(missing_ok=True)
+            return jsonify(comment), 201
+        comments = []
+        if directory.is_dir():
+            for path in directory.glob("*.json"):
+                if path.is_symlink():
+                    continue
+                with path.open(encoding="utf-8") as handle:
+                    comments.append(json.load(handle))
+        comments.sort(key=lambda item: item["created_at"], reverse=True)
+        return jsonify({"site": site_id, "comments": comments})
+    except (OSError, ValueError, KeyError) as error:
+        app.logger.exception("Unable to access site comments")
+        abort(500, "Unable to read or save site comments")
 
 
 @app.get("/api/site_backups")

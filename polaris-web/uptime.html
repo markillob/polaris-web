@@ -163,6 +163,39 @@
       box-shadow: 0 18px 48px rgba(20, 35, 66, 0.08);
     }
 
+    main.table-full-width {
+      width: calc(100% - 24px);
+      max-width: none;
+    }
+
+    .table-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px 20px;
+      margin-bottom: 14px;
+    }
+
+    .table-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-controls output {
+      min-width: 4ch;
+    }
+
+    #uptime-results > .table-wrap th,
+    #uptime-results > .table-wrap td {
+      font-size: calc(14px * var(--table-scale, 1));
+      padding: calc(10px * var(--table-scale, 1)) calc(12px * var(--table-scale, 1));
+    }
+
+    #uptime-results > .table-wrap th {
+      font-size: calc(12px * var(--table-scale, 1));
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -441,8 +474,24 @@
     <div class="search-bar">
       <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like site:422 device:core serial:ABC type:access_point uptime:day" autocomplete="off">
     </div>
-    <button class="details-button" type="button" id="refresh-inventory">refresh</button>
+    <div class="table-controls" aria-label="Table controls">
+      <button class="details-button" type="button" id="refresh-inventory">refresh</button>
+      <button class="details-button" type="button" id="export-device-status" hidden disabled>export to csv</button>
+      <label for="table-size">table size
+        <input type="range" id="table-size" min="75" max="150" step="5" value="100">
+        <output id="table-size-value" for="table-size">100%</output>
+      </label>
+      <label><input type="checkbox" id="table-full-width">full width</label>
+    </div>
     <section id="uptime-results"></section>
+    <details class="uptime-chart-section" id="vlan-mac-section">
+      <summary>MAC addresses by device and VLAN</summary>
+      <div class="uptime-chart-body">
+        <input class="search-input" type="search" id="vlan-mac-search" aria-label="Search VLAN MAC counts" placeholder="Search device, site, VLAN ID or VLAN name" autocomplete="off">
+        <div id="vlan-mac-results" aria-live="polite">Loading VLAN MAC counts...</div>
+        <p class="status" style="margin-top: 14px;">Per-device MAC counts from IFSTATE_status.db / vlan_mac_counts; counts are not unique across devices.</p>
+      </div>
+    </details>
     <p class="status" id="uptime-count" style="margin: 18px 0 0;">Loading Device Status data...</p>
   </main>
 
@@ -453,6 +502,10 @@
     const pageTitleEl = document.getElementById("page-title");
     const backLinkEl = document.getElementById("back-link");
     const selectedSite = new URLSearchParams(window.location.search).get("site");
+    const exportDeviceStatusEl = document.getElementById("export-device-status");
+    exportDeviceStatusEl.hidden = !selectedSite;
+    let visibleDeviceRows = [];
+    let inventoryReady = false;
     const inventoryFile = "/api/inventory";
     const inventoryDataName = "inventory.db";
     const siteSorter = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -878,6 +931,8 @@
     function renderResults() {
       const query = uptimeSearchEl.value.trim();
       const visibleRows = sortedRows(uptimeRows.filter((row) => rowMatchesSearch(row, query)));
+      visibleDeviceRows = visibleRows;
+      exportDeviceStatusEl.disabled = !inventoryReady || visibleRows.length === 0;
       const countLabel = query
         ? `Showing ${visibleRows.length} of ${uptimeRows.length} network devices`
         : `Showing ${uptimeRows.length} network devices`;
@@ -889,7 +944,84 @@
       `;
     }
 
+    let vlanMacRows = [];
+    const vlanMacOpen = new Set();
+    const vlanMacSort = new Map();
+    const vlanMacResults = document.getElementById("vlan-mac-results");
+
+    function compareVlanMacRows(a, b, direction) {
+      const countOrder = (Number(a.entries) || 0) - (Number(b.entries) || 0);
+      return (direction ? countOrder * (direction === "descending" ? -1 : 1) : 0)
+        || siteSorter.compare(String(a.vlan_id), String(b.vlan_id));
+    }
+
+    function renderVlanMacCounts() {
+      const query = document.getElementById("vlan-mac-search").value.trim().toLowerCase();
+      const groups = new Map();
+      for (const row of vlanMacRows) {
+        if (query && ![row.site, row.device, row.vlan_id, row.vlan_name].some(value => String(value ?? "").toLowerCase().includes(query))) continue;
+        const key = JSON.stringify([row.site, row.device]);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(row);
+      }
+      vlanMacResults.innerHTML = [...groups.entries()].map(([key, rows]) => {
+        const direction = vlanMacSort.get(key);
+        rows.sort((a, b) => compareVlanMacRows(a, b, direction));
+        const total = rows.reduce((sum, row) => sum + (Number(row.entries) || 0), 0);
+        return `<details class="uptime-chart-section" data-vlan-device="${escapeHtml(key)}" ${vlanMacOpen.has(key) ? "open" : ""}>
+          <summary>${escapeHtml(rows[0].device)} | site ${escapeHtml(rows[0].site)} | ${rows.length} VLANs | ${total} MAC entries</summary>
+          <div class="table-wrap"><table>
+            <thead><tr><th>VLAN ID</th><th>VLAN name</th><th aria-sort="${direction || "none"}"><button type="button" class="sort-button" data-vlan-mac-sort title="Sort by MAC entries">MAC entries <span aria-hidden="true">${direction === "descending" ? "&#9660;" : direction === "ascending" ? "&#9650;" : "&#8597;"}</span></button></th><th>Queried at</th></tr></thead>
+            <tbody>${rows.map(row => `<tr><td>${escapeHtml(row.vlan_id ?? "")}</td><td>${escapeHtml(row.vlan_name ?? "")}</td><td>${escapeHtml(row.entries ?? 0)}</td><td>${escapeHtml(row.queried_at ?? "")}</td></tr>`).join("")}</tbody>
+          </table></div>
+        </details>`;
+      }).join("") || '<div class="empty">No VLAN MAC counts found for this site or search.</div>';
+    }
+
+    async function loadVlanMacCounts() {
+      try {
+        const url = selectedSite ? `/api/vlan_mac_counts?site=${encodeURIComponent(selectedSite)}` : "/api/vlan_mac_counts";
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Could not load VLAN MAC counts (${response.status})`);
+        const data = await response.json();
+        vlanMacRows = data.counts || [];
+        renderVlanMacCounts();
+      } catch (error) {
+        vlanMacRows = [];
+        vlanMacResults.innerHTML = '<div class="error">Unable to load VLAN MAC counts from IFSTATE_status.db. Check that vlan_mac_counts exists and restart the server after updating.</div>';
+      }
+    }
+
+    document.getElementById("vlan-mac-search").addEventListener("input", renderVlanMacCounts);
+    vlanMacResults.addEventListener("click", event => {
+      const button = event.target.closest("[data-vlan-mac-sort]");
+      if (!button) return;
+      const group = button.closest("[data-vlan-device]");
+      const key = group.dataset.vlanDevice;
+      const direction = vlanMacSort.get(key) === "descending" ? "ascending" : "descending";
+      vlanMacSort.set(key, direction);
+      const tbody = group.querySelector("tbody");
+      const rows = [...tbody.rows];
+      rows.sort((a, b) => compareVlanMacRows(
+        { entries: a.cells[2].textContent, vlan_id: a.cells[0].textContent },
+        { entries: b.cells[2].textContent, vlan_id: b.cells[0].textContent }, direction));
+      // Reorder only this device's rows so focus and expanded sections stay intact.
+      tbody.append(...rows);
+      button.closest("th").setAttribute("aria-sort", direction);
+      button.querySelector("span").innerHTML = direction === "descending" ? "&#9660;" : "&#9650;";
+    });
+    vlanMacResults.addEventListener("toggle", event => {
+      const key = event.target.dataset.vlanDevice;
+      if (key) {
+        if (event.target.open) vlanMacOpen.add(key);
+        else vlanMacOpen.delete(key);
+      }
+    }, true);
+
     async function loadUptime() {
+      inventoryReady = false;
+      visibleDeviceRows = [];
+      exportDeviceStatusEl.disabled = true;
       try {
         const inventoryUrl = selectedSite ? `${inventoryFile}?site=${encodeURIComponent(selectedSite)}` : inventoryFile;
         const response = await fetch(inventoryUrl, { cache: "no-store" });
@@ -900,20 +1032,57 @@
         const data = await response.json();
         uptimeUpdated = data.imported_at ? `, imported ${data.imported_at}` : "";
         uptimeRows = normalizeRows(data.devices || []);
+        inventoryReady = true;
         renderResults();
       } catch (error) {
+        uptimeRows = [];
         uptimeCountEl.textContent = "Unable to load Device Status data.";
         uptimeResultsEl.innerHTML = '<div class="error">Start the Polaris server with python3 serve_polaris.py so the page can read inventory.db.</div>';
         console.error(error);
       }
     }
 
+    function deviceStatusCsv(rows) {
+      const csvColumns = columns.filter(column => !column.action);
+      const escapeCsv = value => {
+        let text = String(value ?? "");
+        // Prevent inventory text from being interpreted as spreadsheet formulas.
+        if (/^[\s]*[=+@-]/.test(text)) text = "'" + text;
+        return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      };
+      return [csvColumns.map(column => escapeCsv(column.label)).join(","),
+        ...rows.map(row => csvColumns.map(column => escapeCsv(row[column.key])).join(","))
+      ].join("\r\n") + "\r\n";
+    }
+
+    exportDeviceStatusEl.addEventListener("click", () => {
+      if (!selectedSite || !inventoryReady || !visibleDeviceRows.length) return;
+      const blob = new Blob(["\uFEFF", deviceStatusCsv(visibleDeviceRows)], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `site_${selectedSite.replace(/[^a-zA-Z0-9_-]/g, "_")}_device_status.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
     uptimeSearchEl.addEventListener("input", renderResults);
+    document.getElementById("table-size").addEventListener("input", (event) => {
+      const size = Number(event.target.value);
+      uptimeResultsEl.style.setProperty("--table-scale", size / 100);
+      document.getElementById("table-size-value").value = `${size}%`;
+    });
+    document.getElementById("table-full-width").addEventListener("change", (event) => {
+      document.querySelector("main").classList.toggle("table-full-width", event.target.checked);
+    });
     document.getElementById("refresh-inventory").addEventListener("click", async (event) => {
       const button = event.currentTarget;
       button.disabled = true;
       try {
         await loadUptime();
+        await loadVlanMacCounts();
       } finally {
         button.disabled = false;
       }
@@ -956,6 +1125,7 @@
     }
 
     loadUptime();
+    loadVlanMacCounts();
   </script>
 </body>
 </html>

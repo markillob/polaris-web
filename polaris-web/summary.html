@@ -282,6 +282,29 @@
     const inventoryFile = "/api/inventory";
     const inventorySourceName = "inventory.db";
     const routesFile = "/api/enterprise_routing";
+    let onlineEndpointRows = [];
+    let onlineEndpointSort = { key: "online_endpoints", direction: "desc" };
+
+    function renderOnlineEndpointTable() {
+      if (!onlineEndpointRows.length) return '<div class="empty">No online endpoints found.</div>';
+      const columns = [
+        ["site", "Site"], ["online_endpoints", "Online Endpoints"],
+        ["vlans", "VLANs"], ["mac_addresses", "MAC Addresses"]
+      ];
+      const rows = [...onlineEndpointRows].sort((a, b) => {
+        const comparison = onlineEndpointSort.key === "site"
+          ? a.site.localeCompare(b.site, undefined, { numeric: true })
+          : a[onlineEndpointSort.key] - b[onlineEndpointSort.key];
+        return comparison * (onlineEndpointSort.direction === "asc" ? 1 : -1)
+          || a.site.localeCompare(b.site, undefined, { numeric: true });
+      });
+      return `<div class="table-wrap"><table><thead><tr>
+        ${columns.map(([key, label]) => `<th aria-sort="${onlineEndpointSort.key === key ? (onlineEndpointSort.direction === "asc" ? "ascending" : "descending") : "none"}">
+          <button type="button" data-online-sort="${key}" style="font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; text-align: left;">
+            ${label}${onlineEndpointSort.key === key ? (onlineEndpointSort.direction === "asc" ? " &#9650;" : " &#9660;") : ""}
+          </button></th>`).join("")}
+        </tr></thead><tbody>${rows.map((row) => `<tr>${columns.map(([key]) => `<td>${escapeHtml(row[key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    }
 
     function escapeHtml(value) {
       return String(value).replace(/[&<>"']/g, (character) => ({
@@ -483,7 +506,32 @@
       </table></div>`;
     }
 
-    function renderSummary(summary, routeCounts = new Map(), totalRoutes = 0, codeVersionRows = []) {
+    function summarizeOnlineEndpoints(devices, endpoints) {
+      const key = (site, name) => JSON.stringify([String(site ?? "").trim(), String(name ?? "").trim().toLowerCase()]);
+      const gateways = new Set(devices
+        .filter((device) => String(device.device_role || "").trim().toLowerCase() === "l3_gateway" && device.fqdn)
+        .map((device) => key(device.site, device.fqdn)));
+      const sites = new Map();
+      for (const endpoint of endpoints) {
+        const source = String(endpoint.arp_source ?? "").trim().toLowerCase();
+        const device = String(endpoint.device_fqdn ?? "").trim().toLowerCase();
+        if (!source || source === "-" || source !== device) continue;
+        if (!gateways.has(key(endpoint.site, endpoint.device_fqdn))) continue;
+        const site = String(endpoint.site).trim();
+        if (!sites.has(site)) sites.set(site, { site, endpoints: 0, vlans: new Set(), macs: new Set() });
+        const row = sites.get(site);
+        row.endpoints += 1;
+        const vlan = String(endpoint.entry_vlan ?? "").trim();
+        const mac = String(endpoint.entry_mac ?? "").trim().toLowerCase();
+        if (vlan && vlan !== "-") row.vlans.add(vlan);
+        if (mac && mac !== "-") row.macs.add(mac);
+      }
+      return [...sites.values()]
+        .sort((a, b) => a.site.localeCompare(b.site, undefined, { numeric: true }))
+        .map((row) => ({ site: row.site, online_endpoints: row.endpoints, vlans: row.vlans.size, mac_addresses: row.macs.size }));
+    }
+
+    function renderSummary(summary, routeCounts = new Map(), totalRoutes = 0, codeVersionRows = [], onlineContent = "") {
       const metadata = summary.metadata || {};
       const siteCount = summary.sites?.length || summary.totals?.sites || 0;
       const sitesWithRoutes = addRouteCountsToSites(summary.sites || [], routeCounts);
@@ -495,7 +543,8 @@
         { id: "fleet", label: "Fleet Overview", content: renderJsonTable(summary.fleet_overview || []) },
         { id: "types", label: "Device Types", content: renderJsonTable(summary.device_types || []) },
         { id: "versions", label: "Code Versions", content: renderCodeVersions(codeVersionRows) },
-        { id: "sites", label: "Sites", content: renderJsonTable(sitesWithRoutes) }
+        { id: "sites", label: "Sites", content: renderJsonTable(sitesWithRoutes) },
+        { id: "online", label: "Online Endpoints", content: onlineContent }
       ];
 
       summaryResultsEl.innerHTML = `
@@ -541,7 +590,20 @@
           console.warn("Unable to load route counts for summary.", routesError);
         }
 
-        renderSummary(summary, routeCounts, totalRoutes, codeVersionRows);
+        let onlineContent;
+        try {
+          const response = await fetch("/api/enterprise_endpoints", { cache: "no-store" });
+          if (!response.ok) throw new Error(`Endpoint API returned ${response.status}`);
+          const data = await response.json();
+          const onlineRows = summarizeOnlineEndpoints(inventoryData.devices || [], data.endpoints || []);
+          onlineEndpointRows = onlineRows;
+          const total = onlineRows.reduce((sum, row) => sum + row.online_endpoints, 0);
+          onlineContent = `<p class="status">${total} endpoints found on L3 gateways across ${onlineRows.length} sites</p><div id="online-endpoint-table">${renderOnlineEndpointTable()}</div>`;
+        } catch (error) {
+          onlineContent = '<div class="error">Unable to load online endpoint summary.</div>';
+          console.warn("Unable to load online endpoints.", error);
+        }
+        renderSummary(summary, routeCounts, totalRoutes, codeVersionRows, onlineContent);
       } catch (error) {
         summaryResultsEl.innerHTML = '<div class="error">Start the Polaris server with python3 serve_polaris.py so the page can read inventory.db.</div>';
         console.error(error);
@@ -558,6 +620,18 @@
     }
 
     summaryResultsEl.addEventListener("click", (event) => {
+      const sortButton = event.target.closest("[data-online-sort]");
+      if (sortButton) {
+        const key = sortButton.dataset.onlineSort;
+        onlineEndpointSort = {
+          key,
+          direction: onlineEndpointSort.key === key && onlineEndpointSort.direction === "desc" ? "asc" : "desc"
+        };
+        const container = document.getElementById("online-endpoint-table");
+        container.innerHTML = renderOnlineEndpointTable();
+        container.querySelector(`[data-online-sort="${key}"]`).focus({ preventScroll: true });
+        return;
+      }
       const tab = event.target.closest('[role="tab"]');
       if (tab) selectSummaryTab(tab);
     });

@@ -359,7 +359,7 @@
       <input class="search-input" type="search" id="endpoints-search" placeholder="Search all columns or use filters like site:310 hostname:AP114 vlan:45 status:true last_seen:2026" autocomplete="off">
     </div>
     <div class="endpoint-actions">
-      <button class="secondary-button" type="button" id="endpoint-export">export csv</button>
+      <button class="secondary-button" type="button" id="endpoint-export">export to csv</button>
     </div>
     <section class="vlan-filter-panel" id="vlan-filter-panel" aria-label="VLAN filter" hidden>
       <div class="vlan-filter-header">
@@ -373,7 +373,15 @@
     </section>
     <p class="status" id="endpoints-count">Loading endpoints data...</p>
     <section id="endpoints-summary"></section>
-    <section id="endpoints-results"></section>
+    <details open>
+      <summary id="online-endpoints-count">online devices</summary>
+      <button class="secondary-button" type="button" id="online-endpoint-export" disabled>export to csv</button>
+      <section id="online-endpoints-results"></section>
+    </details>
+    <details open>
+      <summary>all entries</summary>
+      <section id="endpoints-results"></section>
+    </details>
   </main>
 
   <script>
@@ -466,6 +474,7 @@
       return rows.map((row) => ({
         site: getFirstValue(row, ["site", "Site"]),
         device: getFirstValue(row, ["device_fqdn", "Device_FQDN"]),
+        arpSource: String(row.arp_source ?? "").trim(),
         hostname: getFirstValue(row, ["Hostname", "hostname"]),
         entryIp: getFirstValue(row, ["entry_ip", "Entry_IP"]),
         entryMac: getFirstValue(row, ["entry_mac", "Entry_MAC"]),
@@ -589,15 +598,15 @@
       return tokens.every((token) => rowMatchesToken(row, token));
     }
 
-    function renderTable(rows) {
+    function renderTable(rows, tableColumns = columns) {
       if (rows.length === 0) {
         return '<div class="empty">No records match the current search.</div>';
       }
 
-      const headers = columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
+      const headers = tableColumns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
       const body = rows.map((row) => `
         <tr>
-          ${columns.map((column) => `<td>${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
+          ${tableColumns.map((column) => `<td>${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
         </tr>
       `).join("");
 
@@ -703,7 +712,7 @@
         return comparison * direction || siteSorter.compare(a.site, b.site);
       });
       const body = sorted.map((row) => `
-        <tr>
+        <tr${row.endpoints > 1000 ? ' class="endpoint-count-high" title="More than 1,000 endpoints"' : ""}>
           <td>${escapeHtml(row.site)}</td>
           <td><a class="table-link" href="/vlans?site=${encodeURIComponent(row.site)}">${escapeHtml(row.vlans)}</a></td>
           <td>${escapeHtml(row.endpoints)}</td>
@@ -736,6 +745,7 @@
       const searchRows = endpointRows.filter((row) => rowMatchesSearch(row, query));
       const visibleRows = searchRows.filter(rowMatchesVlanSelection);
       visibleEndpointRows = visibleRows;
+      endpointExportEl.disabled = visibleRows.length === 0;
       const filterActive = endpointFiltersActive();
       const countLabel = query || filterActive
         ? `Showing ${visibleRows.length} of ${endpointRows.length} endpoints`
@@ -744,6 +754,12 @@
       endpointsCountEl.textContent = `${countLabel} from ${endpointsSourceName}${endpointsUpdated}`;
       renderSummary(visibleRows);
       endpointsResultsEl.innerHTML = renderTable(visibleRows);
+      const onlineRows = visibleRows.filter(row => row.arpSource !== "");
+      document.getElementById("online-endpoints-results").innerHTML = renderTable(onlineRows, [
+        ...columns, { key: "arpSource", label: "ARP source" }
+      ]);
+      document.getElementById("online-endpoints-count").textContent = `online devices (${onlineRows.length})`;
+      document.getElementById("online-endpoint-export").disabled = onlineRows.length === 0;
     }
 
     function endpointFiltersActive() {
@@ -780,10 +796,12 @@
 
     function exportCurrentEndpointCsv() {
       const filtered = endpointFiltersActive();
-      exportEndpointCsv(filtered ? visibleEndpointRows : endpointRows, filtered ? "filtered" : "all");
+      exportEndpointCsv(visibleEndpointRows, filtered ? "filtered" : "all");
     }
 
     async function loadEndpoints() {
+      visibleEndpointRows = [];
+      endpointExportEl.disabled = true;
       try {
         const response = await fetch(endpointsFile, { cache: "no-store" });
         if (!response.ok) {
@@ -817,6 +835,9 @@
       container.querySelector(`[data-summary-sort="${key}"]`).focus({ preventScroll: true });
     });
     endpointExportEl.addEventListener("click", exportCurrentEndpointCsv);
+    document.getElementById("online-endpoint-export").addEventListener("click", () => {
+      exportEndpointCsv(visibleEndpointRows.filter(row => row.arpSource !== ""), "online");
+    });
     vlanFilterOptionsEl.addEventListener("change", (event) => {
       if (!event.target.matches('input[type="checkbox"]')) {
         return;

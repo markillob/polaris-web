@@ -10,6 +10,20 @@ tbody tr:hover:not(.details-row):not(.backup-detail):not(.diff-newer):not(.diff-
   background: #edf4ff !important;
 }
 
+#endpoints-summary tr.endpoint-count-high > td {
+  background: #fff0cf !important;
+  color: #593900;
+}
+
+#endpoints-summary tr.endpoint-count-high > td:first-child {
+  border-left: 4px solid #b86e00;
+}
+
+body[data-theme="dark"] #endpoints-summary tr.endpoint-count-high > td {
+  background: #493510 !important;
+  color: #ffedbd;
+}
+
 body[data-theme="dark"] {
   background:
     radial-gradient(circle at top left, rgba(83, 137, 255, 0.16), transparent 34rem),
