@@ -322,6 +322,7 @@
   <main>
     <header class="topbar">
       <a class="brand" href="/polaris-web/index.html">Polaris</a>
+      <a class="home-button" id="feed-back" href="/polaris-web/index.html">back</a>
       <a class="home-button" href="/polaris-web/index.html">home</a>
     </header>
 
@@ -350,6 +351,9 @@
     const feedResultsEl = document.getElementById("feed-results");
     const feedSnapshotInfoEl = document.getElementById("feed-snapshot-info");
     const initialSite = new URLSearchParams(window.location.search).get("site") || "";
+    if (initialSite) {
+      document.getElementById("feed-back").href = `/polaris-web/site.html?site=${encodeURIComponent(initialSite)}`;
+    }
     let feedData = null;
     let selectedSite = initialSite;
     let openWeeks = new Set();
