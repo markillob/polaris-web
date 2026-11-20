@@ -317,6 +317,7 @@
   </style>
   <link rel="stylesheet" href="/polaris-web/theme.css">
   <script defer src="/polaris-web/theme.js"></script>
+  <script defer src="/polaris-web/endpoint-table-controls.js"></script>
 </head>
 <body>
   <main>
@@ -332,6 +333,10 @@
     </section>
 
     <section class="summary-grid" id="feed-summary"></section>
+    <div class="endpoint-table-controls">
+      <label>table size <input data-endpoint-table-size type="range" min="75" max="150" step="5" value="100"><output>100%</output></label>
+      <label><input data-endpoint-table-wide type="checkbox">full width</label>
+    </div>
     <section class="controls" aria-label="Endpoint feed controls">
       <select class="site-select" id="site-filter" aria-label="Filter by site">
         <option value="">All sites</option>

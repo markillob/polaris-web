@@ -1013,6 +1013,7 @@
   </style>
   <link rel="stylesheet" href="/polaris-web/theme.css">
   <script defer src="/polaris-web/theme.js"></script>
+  <script defer src="/polaris-web/endpoint-table-controls.js"></script>
 </head>
 <body>
   <main>
@@ -2514,6 +2515,8 @@
     }
 
     function setActiveOperation(kind) {
+      document.querySelector("main").classList.remove("endpoint-table-wide");
+      document.querySelector("main").style.removeProperty("--endpoint-table-scale");
       document.getElementById("kpis-button").classList.toggle("active", kind === "kpis");
       document.getElementById("kpis-button").setAttribute("aria-pressed", String(kind === "kpis"));
       document.getElementById("comments-button").classList.toggle("active", kind === "comments");
@@ -2647,6 +2650,10 @@
 
         operationPanelEl.innerHTML = `
           ${submenuHeader("Endpoints")}
+          <div class="endpoint-table-controls">
+            <label>table size <input data-endpoint-table-size type="range" min="75" max="150" step="5" value="100"><output>100%</output></label>
+            <label><input data-endpoint-table-wide type="checkbox">full width</label>
+          </div>
           <div class="panel-actions">
             <div class="search-bar" style="flex: 1; margin-bottom: 0;">
               <input class="search-input" type="search" id="endpoint-search" placeholder="Search all columns or use filters like hostname:AP114 vlan:45 status:true last_seen:2026" autocomplete="off">
