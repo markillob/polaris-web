@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site photos</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f7fa; color: #172033; font-family: Arial, sans-serif; }
+    main { width: min(1180px, calc(100% - 32px)); margin: auto; padding: 24px 0 48px; }
+    .topbar { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+    .brand, .home-button { color: inherit; text-decoration: none; padding: 10px; }
+    h1 { font-size: 24px; margin: 0; flex: 1; }
+    .search-input { width: 100%; padding: 12px; font: inherit; border: 1px solid #ccd5e3; border-radius: 6px; }
+    .site-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .site-button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 12px; border: 1px solid #ccd5e3; border-radius: 8px; color: inherit; background: white; text-decoration: none; overflow-wrap: anywhere; }
+    .site-button strong { font-size: 20px; }
+    .site-button span { font-size: 13px; }
+    .site-button:hover, .site-button:focus-visible { outline: 2px solid #2468f2; outline-offset: 2px; }
+    .status { margin: 16px 0; }
+    body[data-theme="dark"] .site-button { background: #252b32; border-color: #56616e; color: #f0f3f8; }
+  </style>
+  <link rel="stylesheet" href="/polaris-web/theme.css">
+  <script defer src="/polaris-web/theme.js"></script>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <a class="brand" href="/polaris-web/index.html">Polaris</a>
+      <h1>photos</h1>
+      <a class="home-button" href="/polaris-web/index.html">back</a>
+      <a class="home-button" href="/polaris-web/index.html">home</a>
+    </header>
+    <input class="search-input" id="photo-site-search" type="search" placeholder="Search sites" aria-label="Search sites with photos">
+    <p class="status" id="photo-site-status" role="status">Loading sites with photos...</p>
+    <section class="site-grid" id="photo-sites" aria-label="Sites with photos"></section>
+  </main>
+  <script>
+    const search = document.getElementById("photo-site-search");
+    const status = document.getElementById("photo-site-status");
+    const grid = document.getElementById("photo-sites");
+    let sites = [];
+    function render() {
+      const visible = sites.filter(row => row.site.toLowerCase().includes(search.value.trim().toLowerCase()));
+      grid.replaceChildren();
+      for (const row of visible) {
+        const link = document.createElement("a");
+        link.className = "site-button";
+        link.href = `/polaris-web/site.html?site=${encodeURIComponent(row.site)}&view=photos`;
+        const name = document.createElement("strong");
+        name.textContent = row.site;
+        const count = document.createElement("span");
+        count.textContent = `${row.photo_count} photo${row.photo_count === 1 ? "" : "s"}`;
+        link.append(name, count);
+        grid.append(link);
+      }
+      status.textContent = visible.length ? `${visible.length} sites with photos` : sites.length ? "No sites match your search." : "No sites have photos yet.";
+    }
+    search.disabled = true;
+    search.addEventListener("input", render);
+    async function load() {
+      try {
+        const response = await fetch("/api/photo_sites", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Unable to load sites with photos (${response.status}).`);
+        sites = (await response.json()).sites.sort((a, b) => a.site.localeCompare(b.site, undefined, { numeric: true }));
+        render();
+        search.disabled = false;
+      } catch (error) {
+        status.textContent = `${error.message} Restart the updated server and refresh to retry.`;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

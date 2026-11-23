@@ -572,7 +572,7 @@ def list_site_interface_status(site):
     }
 
 
-def list_site_interfaces(site):
+def list_site_interfaces(site, counter_mode="delta"):
     site_id = safe_site_id(site)
     status_payload = list_site_interface_status(site_id)
     if not IFSTATE_COUNTER_DB_PATH.exists():
@@ -672,7 +672,8 @@ def list_site_interfaces(site):
             reverse=True,
         )
         row = sorted_rows[0]
-        previous_row = sorted_rows[1] if len(sorted_rows) > 1 else None
+        previous_row = next((candidate for candidate in sorted_rows[1:]
+                             if "timestamp" not in selected_columns or candidate["timestamp"] != row["timestamp"]), None)
         row_data = {
             column: "" if row[column] is None else str(row[column])
             for column in selected_columns
@@ -682,6 +683,8 @@ def list_site_interfaces(site):
             else str(previous_row["timestamp"])
         )
         for column in counter_columns:
+            if counter_mode == "latest":
+                continue
             if not previous_row:
                 row_data[column] = "0"
                 continue
@@ -1046,6 +1049,25 @@ def list_telco_room_photos(site):
             photos.append(photo_payload(site, path, Path("telco_rooms") / path.name, "telco rooms"))
 
     return sorted(photos, key=lambda item: item["modified"], reverse=True)
+
+
+@app.get("/api/photo_sites")
+def photo_sites():
+    sites = []
+    try:
+        if PHOTO_ROOT.is_dir():
+            for directory in PHOTO_ROOT.iterdir():
+                if not directory.is_dir() or directory.is_symlink() or directory.name.startswith("."):
+                    continue
+                if secure_filename(directory.name) != directory.name:
+                    continue
+                photos = list_all_site_photos(directory.name)
+                if photos:
+                    sites.append({"site": directory.name, "photo_count": len(photos)})
+    except OSError:
+        app.logger.exception("Unable to list sites with photos")
+        abort(500, "Unable to list sites with photos")
+    return jsonify({"sites": sorted(sites, key=lambda row: row["site"]), "total": len(sites)})
 
 
 def list_all_site_photos(site):
@@ -1576,8 +1598,11 @@ def site_backups():
 @app.get("/api/site_interfaces")
 def site_interfaces():
     site = request.args.get("site", "").strip()
+    counter_mode = request.args.get("counter_mode", "delta")
+    if counter_mode not in {"latest", "delta"}:
+        abort(400, "counter_mode must be latest or delta")
     try:
-        payload = list_site_interfaces(site)
+        payload = list_site_interfaces(site, counter_mode=counter_mode)
     except FileNotFoundError as error:
         abort(404, str(error))
     except sqlite3.Error as error:
@@ -1586,6 +1611,7 @@ def site_interfaces():
     return jsonify({
         "source": "/polaris/data/IFSTATE_status.db",
         "site": site,
+        "counter_mode": counter_mode,
         **payload,
     })
 

@@ -2111,6 +2111,7 @@
     }
 
     function interfaceDeltaSummary(devices) {
+      if (interfaceCounterMode === "latest") return "Latest stored counters per interface; values are not timestamp deltas.";
       const row = firstInterfaceRow(devices);
       return row ? interfaceDeltaDescription(row) : "no interface rows available for delta comparison";
     }
@@ -2414,7 +2415,7 @@
           <summary>
             <span class="counters-section-heading">
               <span class="counters-section-label">interface counters</span>
-              <span class="counters-section-hint">Counter deltas from IFSTATE_counters.db, excluding interfaces with status down.</span>
+              <span class="counters-section-hint">${interfaceCounterMode === "latest" ? "Latest counters" : "Counter deltas"} from IFSTATE_counters.db, excluding interfaces with status down.</span>
             </span>
             <span class="counters-section-count">${visibleCounterCount} interface${visibleCounterCount === 1 ? "" : "s"}</span>
           </summary>
@@ -2427,12 +2428,14 @@
       `;
     }
 
+    let interfaceCounterMode = "latest";
+
     async function loadInterfaces() {
       setActiveOperation("interfaces");
       operationPanelEl.innerHTML = '<div class="empty">Loading interface data...</div>';
 
       try {
-        const response = await fetch(`${interfacesFile}?site=${encodeURIComponent(siteId)}`, { cache: "no-store" });
+        const response = await fetch(`${interfacesFile}?site=${encodeURIComponent(siteId)}&counter_mode=${interfaceCounterMode}`, { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`Could not load ${interfacesFile} (${response.status})`);
         }
@@ -2446,7 +2449,7 @@
         currentCounterColumns = buildInterfaceColumns(counterColumns);
         currentInterfaceSort = { key: "interface", direction: "asc" };
         currentCounterSort = { key: "interface", direction: "asc" };
-        interfaceCountersExpanded = false;
+        interfaceCountersExpanded = true;
         openCounterDevices = new Set();
         currentInterfaceFilterColumns = [
           ...currentInterfaceColumns,
@@ -2463,6 +2466,14 @@
         updateInterfacesButton(data.status_total_interfaces || 0);
         operationPanelEl.innerHTML = `
           ${submenuHeader("interfaces")}
+          <div class="panel-actions">
+            <label for="interface-counter-mode">counters</label>
+            <select id="interface-counter-mode">
+              <option value="latest" ${interfaceCounterMode === "latest" ? "selected" : ""}>latest values</option>
+              <option value="delta" ${interfaceCounterMode === "delta" ? "selected" : ""}>delta between timestamps</option>
+            </select>
+            <button type="button" class="secondary-button" id="interface-refresh">refresh</button>
+          </div>
           <div class="search-bar">
             <input class="search-input" type="search" id="interface-search" placeholder="Search all values or use filters like device:core interface:1/1 description:uplink speed:1G errors_rx:0" autocomplete="off">
           </div>
@@ -2470,6 +2481,11 @@
           <div id="interface-results"></div>
         `;
         document.getElementById("interface-search").addEventListener("input", renderInterfaceResults);
+        document.getElementById("interface-counter-mode").addEventListener("change", event => {
+          interfaceCounterMode = event.target.value;
+          loadInterfaces();
+        });
+        document.getElementById("interface-refresh").addEventListener("click", loadInterfaces);
         renderInterfaceResults();
       } catch (error) {
         operationPanelEl.innerHTML = '<div class="error">Unable to load interface data for this site.</div>';
@@ -2516,7 +2532,7 @@
 
     function setActiveOperation(kind) {
       document.querySelector("main").classList.remove("endpoint-table-wide");
-      document.querySelector("main").style.removeProperty("--endpoint-table-scale");
+      document.querySelector("main").style.removeProperty("--endpoint-frame-scale");
       document.getElementById("kpis-button").classList.toggle("active", kind === "kpis");
       document.getElementById("kpis-button").setAttribute("aria-pressed", String(kind === "kpis"));
       document.getElementById("comments-button").classList.toggle("active", kind === "comments");
@@ -2699,7 +2715,7 @@
           </details>
           <footer>
             <div class="endpoint-table-controls">
-              <label>table size <input data-endpoint-table-size type="range" min="75" max="150" step="5" value="100"><output>100%</output></label>
+              <label>table width <input data-endpoint-table-size type="range" min="50" max="100" step="5" value="100"><output>100%</output></label>
               <label><input data-endpoint-table-wide type="checkbox">full width</label>
             </div>
             <p class="status" id="endpoint-count"></p>
@@ -3075,6 +3091,7 @@
         const data = await fetchPhotos();
         operationPanelEl.innerHTML = `
           ${submenuHeader("photos")}
+          <a class="secondary-button" href="/polaris-web/photos.html">all photo sites</a>
           <form class="upload-form" id="photo-upload-form">
             <input class="file-input" type="file" id="photo-input" name="photos" accept="image/*" multiple>
             <button class="secondary-button" type="submit" id="photo-upload-button">upload photos</button>
@@ -3569,7 +3586,9 @@
         movePhotoViewer(1);
       }
     });
-    loadSite();
+    loadSite().then(() => {
+      if (siteId && new URLSearchParams(window.location.search).get("view") === "photos") loadPhotos();
+    });
   </script>
 </body>
 </html>

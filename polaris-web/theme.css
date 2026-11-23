@@ -336,7 +336,7 @@ body[data-theme="dark"] .theme-toggle[data-active-theme="dark"] .theme-toggle-da
   color: #f8fafc;
 }
 /* Endpoint table controls also support dynamically loaded site submenus. */
-main.endpoint-table-wide {
+main.endpoint-table-wide:has(.endpoint-table-controls) {
   width: calc(100% - 24px);
   max-width: none;
 }
@@ -358,16 +358,11 @@ main.endpoint-table-wide {
 .endpoint-table-controls output { min-width: 4ch; }
 
 main:has(.endpoint-table-controls) .table-wrap {
+  width: calc(100% * var(--endpoint-frame-scale, 1));
   max-width: 100%;
   overflow-x: auto;
 }
 
-main:has(.endpoint-table-controls) .table-wrap th,
-main:has(.endpoint-table-controls) .table-wrap td {
-  font-size: calc(14px * var(--endpoint-table-scale, 1));
-  padding: calc(10px * var(--endpoint-table-scale, 1)) calc(12px * var(--endpoint-table-scale, 1));
-}
-
-main:has(.endpoint-table-controls) .table-wrap th {
-  font-size: calc(12px * var(--endpoint-table-scale, 1));
+main:has(.endpoint-table-controls) .table-wrap > table {
+  width: 100%;
 }

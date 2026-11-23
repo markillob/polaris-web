@@ -163,7 +163,7 @@
       box-shadow: 0 18px 48px rgba(20, 35, 66, 0.08);
     }
 
-    main.table-full-width {
+    main.table-full-width:has(#table-size) {
       width: calc(100% - 24px);
       max-width: none;
     }
@@ -186,14 +186,13 @@
       min-width: 4ch;
     }
 
-    #uptime-results > .table-wrap th,
-    #uptime-results > .table-wrap td {
-      font-size: calc(14px * var(--table-scale, 1));
-      padding: calc(10px * var(--table-scale, 1)) calc(12px * var(--table-scale, 1));
+    #uptime-results > .table-wrap > table {
+      width: 100%;
     }
 
-    #uptime-results > .table-wrap th {
-      font-size: calc(12px * var(--table-scale, 1));
+    #uptime-results > .table-wrap {
+      width: calc(100% * var(--table-frame-scale, 1));
+      max-width: 100%;
     }
 
     table {
@@ -488,8 +487,8 @@
       </div>
     </details>
     <div class="table-controls" aria-label="Table size controls">
-      <label for="table-size">table size
-        <input type="range" id="table-size" min="75" max="150" step="5" value="100">
+      <label for="table-size">table width
+        <input type="range" id="table-size" min="50" max="100" step="5" value="100">
         <output id="table-size-value" for="table-size">100%</output>
       </label>
       <label><input type="checkbox" id="table-full-width">full width</label>
@@ -1073,7 +1072,8 @@
     uptimeSearchEl.addEventListener("input", renderResults);
     document.getElementById("table-size").addEventListener("input", (event) => {
       const size = Number(event.target.value);
-      uptimeResultsEl.style.setProperty("--table-scale", size / 100);
+      const main = document.querySelector("main");
+      main.style.setProperty("--table-frame-scale", size / 100);
       document.getElementById("table-size-value").value = `${size}%`;
     });
     document.getElementById("table-full-width").addEventListener("change", (event) => {

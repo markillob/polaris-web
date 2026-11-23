@@ -4,7 +4,7 @@
     const controls = event.target.closest(".endpoint-table-controls");
     const main = controls.closest("main");
     const size = Number(event.target.value);
-    main.style.setProperty("--endpoint-table-scale", size / 100);
+    main.style.setProperty("--endpoint-frame-scale", size / 100);
     controls.querySelector("output").value = `${size}%`;
   });
   document.addEventListener("change", event => {
