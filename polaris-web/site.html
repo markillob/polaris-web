@@ -2650,10 +2650,6 @@
 
         operationPanelEl.innerHTML = `
           ${submenuHeader("Endpoints")}
-          <div class="endpoint-table-controls">
-            <label>table size <input data-endpoint-table-size type="range" min="75" max="150" step="5" value="100"><output>100%</output></label>
-            <label><input data-endpoint-table-wide type="checkbox">full width</label>
-          </div>
           <div class="panel-actions">
             <div class="search-bar" style="flex: 1; margin-bottom: 0;">
               <input class="search-input" type="search" id="endpoint-search" placeholder="Search all columns or use filters like hostname:AP114 vlan:45 status:true last_seen:2026" autocomplete="off">
@@ -2702,6 +2698,10 @@
             </div>
           </details>
           <footer>
+            <div class="endpoint-table-controls">
+              <label>table size <input data-endpoint-table-size type="range" min="75" max="150" step="5" value="100"><output>100%</output></label>
+              <label><input data-endpoint-table-wide type="checkbox">full width</label>
+            </div>
             <p class="status" id="endpoint-count"></p>
           </footer>
         `;

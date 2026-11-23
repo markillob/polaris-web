@@ -474,14 +474,9 @@
     <div class="search-bar">
       <input class="search-input" type="search" id="uptime-search" placeholder="Search all columns or use filters like site:422 device:core serial:ABC type:access_point uptime:day" autocomplete="off">
     </div>
-    <div class="table-controls" aria-label="Table controls">
+    <div class="table-controls" aria-label="Table actions">
       <button class="details-button" type="button" id="refresh-inventory">refresh</button>
       <button class="details-button" type="button" id="export-device-status" hidden disabled>export to csv</button>
-      <label for="table-size">table size
-        <input type="range" id="table-size" min="75" max="150" step="5" value="100">
-        <output id="table-size-value" for="table-size">100%</output>
-      </label>
-      <label><input type="checkbox" id="table-full-width">full width</label>
     </div>
     <section id="uptime-results"></section>
     <details class="uptime-chart-section" id="vlan-mac-section">
@@ -492,6 +487,13 @@
         <p class="status" style="margin-top: 14px;">Per-device MAC counts from IFSTATE_status.db / vlan_mac_counts; counts are not unique across devices.</p>
       </div>
     </details>
+    <div class="table-controls" aria-label="Table size controls">
+      <label for="table-size">table size
+        <input type="range" id="table-size" min="75" max="150" step="5" value="100">
+        <output id="table-size-value" for="table-size">100%</output>
+      </label>
+      <label><input type="checkbox" id="table-full-width">full width</label>
+    </div>
     <p class="status" id="uptime-count" style="margin: 18px 0 0;">Loading Device Status data...</p>
   </main>
 

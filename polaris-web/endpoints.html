@@ -362,10 +362,6 @@
     <div class="endpoint-actions">
       <button class="secondary-button" type="button" id="endpoint-export">export to csv</button>
     </div>
-    <div class="endpoint-table-controls">
-      <label>table size <input data-endpoint-table-size type="range" min="75" max="150" step="5" value="100"><output>100%</output></label>
-      <label><input data-endpoint-table-wide type="checkbox">full width</label>
-    </div>
     <section class="vlan-filter-panel" id="vlan-filter-panel" aria-label="VLAN filter" hidden>
       <div class="vlan-filter-header">
         <p class="vlan-filter-title">vlans</p>
@@ -387,6 +383,10 @@
       <summary>all entries</summary>
       <section id="endpoints-results"></section>
     </details>
+    <div class="endpoint-table-controls">
+      <label>table size <input data-endpoint-table-size type="range" min="75" max="150" step="5" value="100"><output>100%</output></label>
+      <label><input data-endpoint-table-wide type="checkbox">full width</label>
+    </div>
   </main>
 
   <script>
