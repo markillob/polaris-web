@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interface outliers</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; color: #172033; background: #f5f7fa; }
+    main { width: min(1180px, calc(100% - 32px)); margin: auto; padding: 24px 0 48px; }
+    .topbar, .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+    h1 { flex: 1; margin: 0; font-size: 24px; }
+    a { color: inherit; }
+    .brand, .home-button { text-decoration: none; padding: 10px; }
+    input, select, button { font: inherit; padding: 8px; }
+    .search-input { flex: 1; min-width: 180px; }
+    .table-wrap { overflow-x: auto; margin: 12px 0; border: 1px solid #8892a0; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #8892a0; font-size: 14px; }
+    details { margin: 16px 0; }
+    summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+    .sort-button { border: 0; background: transparent; color: inherit; cursor: pointer; font-weight: bold; }
+  </style>
+  <link rel="stylesheet" href="/polaris-web/theme.css">
+  <script defer src="/polaris-web/theme.js"></script>
+</head>
+<body>
+<main>
+  <header class="topbar"><a class="brand" href="/polaris-web/index.html">Polaris</a><h1>outliers</h1><a class="home-button" href="/polaris-web/index.html">back</a><a class="home-button" href="/polaris-web/index.html">home</a></header>
+  <p>Up interfaces with recorded errors or speeds of 100 Mbps or below. Latest sample per interface; error counters are cumulative, not recent rates. Low speed may be expected for some devices.</p>
+  <div class="controls"><input id="search" class="search-input" type="search" placeholder="Search site" aria-label="Search site"><select id="kind" aria-label="Outlier type"><option value="all">all outliers</option><option value="errors">recorded errors</option><option value="slow">100 Mbps or below</option></select><button id="refresh" type="button">refresh</button></div>
+  <p id="message" role="status"></p>
+  <div id="results"></div>
+  <p id="source"></p>
+</main>
+<script>
+  const results = document.getElementById('results');
+  const message = document.getElementById('message');
+  const search = document.getElementById('search');
+  const kind = document.getElementById('kind');
+  let sites = [];
+  let sort = {key: 'error_interfaces', direction: -1};
+  const collator = new Intl.Collator(undefined, {numeric: true});
+  const columns = [['site','site'],['error_interfaces','interfaces with errors'],['slow_interfaces','100 Mbps or below'],['affected_interfaces','affected interfaces']];
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function render() {
+    const visible = sites.filter(site => site.site.toLowerCase().includes(search.value.trim().toLowerCase()))
+      .filter(site => kind.value === 'all' || (kind.value === 'errors' ? site.error_interfaces : site.slow_interfaces) > 0)
+      .sort((a,b) => (sort.key === 'site' ? collator.compare(a.site,b.site) : a[sort.key]-b[sort.key]) * sort.direction || collator.compare(a.site,b.site));
+    message.textContent = `${visible.length} sites with outliers`;
+    results.innerHTML = visible.length ? `<div class="table-wrap"><table><thead><tr>${columns.map(([key,label]) => `<th aria-sort="${sort.key === key ? (sort.direction === 1 ? 'ascending' : 'descending') : 'none'}"><button class="sort-button" data-sort="${key}">${label}</button></th>`).join('')}</tr></thead><tbody>${visible.map(site => `<tr><td><a href="/polaris-web/site.html?site=${encodeURIComponent(site.site)}&view=interfaces">${esc(site.site)}</a></td><td>${site.error_interfaces}</td><td>${site.slow_interfaces}</td><td>${site.affected_interfaces}</td></tr>`).join('')}</tbody></table></div>` + visible.map(site => {
+      const rows = site.interfaces.filter(row => kind.value === 'all' || (kind.value === 'slow' ? row.slow : Object.keys(row.errors).length));
+      return `<details><summary>site ${esc(site.site)}: ${rows.length} affected interfaces</summary><div class="table-wrap"><table><thead><tr><th>device</th><th>interface</th><th>speed</th><th>recorded errors</th><th>description</th><th>sample time</th></tr></thead><tbody>${rows.map(row => `<tr><td>${esc(row.device)}</td><td>${esc(row.interface)}</td><td>${esc(row.speed)}</td><td>${esc(Object.entries(row.errors).map(([k,v])=>`${k}: ${v}`).join(', ') || '-')}</td><td>${esc(row.description)}</td><td>${esc(row.timestamp)}</td></tr>`).join('')}</tbody></table></div></details>`;
+    }).join('') : '<p>No matching outliers.</p>';
+  }
+  results.addEventListener('click', event => {
+    const button = event.target.closest('[data-sort]');
+    if (!button) return;
+    const key = button.dataset.sort;
+    sort = {key, direction: sort.key === key ? -sort.direction : key === 'site' ? 1 : -1};
+    render();
+    results.querySelector(`[data-sort="${key}"]`).focus({preventScroll:true});
+  });
+  search.addEventListener('input', render);
+  kind.addEventListener('change', render);
+  async function load() {
+    document.getElementById('refresh').disabled = true;
+    search.disabled = kind.disabled = true;
+    message.textContent = 'Loading outliers...';
+    results.replaceChildren();
+    document.getElementById('source').textContent = '';
+    try {
+      const response = await fetch('/api/interface_outliers', {cache:'no-store'});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to load outliers.');
+      sites = data.sites;
+      render();
+      document.getElementById('source').textContent = `${data.source} / ifstate_counters | latest sample: ${data.latest || 'none'}`;
+      search.disabled = kind.disabled = false;
+    } catch (error) { message.textContent = error.message; }
+    finally { document.getElementById('refresh').disabled = false; }
+  }
+  document.getElementById('refresh').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>

@@ -19,7 +19,7 @@ DATA_ROOT = ROOT / "polaris" / "data"
 DB_PATH = DATA_ROOT / "enterprise_endpoints.db"
 INVENTORY_DB_PATH = DATA_ROOT / "inventory.db"
 ROUTING_DB_PATH = DATA_ROOT / "enterprise_routing.db"
-IFSTATE_COUNTER_DB_PATH = DATA_ROOT / "IFSTATE_counters.db"
+IFSTATE_COUNTER_DB_PATH = DATA_ROOT / "IFSTATE_status.db"
 IFSTATE_STATUS_DB_PATH = DATA_ROOT / "IFSTATE_status.db"
 CONFIG_PATH = DATA_ROOT / "config.yaml"
 PHOTO_ROOT = DATA_ROOT / "site_photos"
@@ -574,7 +574,11 @@ def list_site_interface_status(site):
 
 def list_site_interfaces(site, counter_mode="delta"):
     site_id = safe_site_id(site)
-    status_payload = list_site_interface_status(site_id)
+    try:
+        status_payload = list_site_interface_status(site_id)
+    except (FileNotFoundError, sqlite3.Error):
+        status_payload = {"path": "/polaris/data/IFSTATE_status.db", "columns": [],
+                          "last_updated": "", "devices": [], "total_devices": 0, "total_interfaces": 0}
     if not IFSTATE_COUNTER_DB_PATH.exists():
         return {
             "exists": True,
@@ -585,7 +589,7 @@ def list_site_interfaces(site, counter_mode="delta"):
             "status_devices": status_payload["devices"],
             "status_total_devices": status_payload["total_devices"],
             "status_total_interfaces": status_payload["total_interfaces"],
-            "counter_path": "/polaris/data/IFSTATE_counters.db",
+            "counter_path": "/polaris/data/IFSTATE_status.db",
             "columns": [],
             "last_updated": "",
             "devices": [],
@@ -662,6 +666,7 @@ def list_site_interfaces(site, counter_mode="delta"):
         rows_by_interface.setdefault(key, []).append(row)
 
     devices_by_name = {}
+    latest_devices_by_name = {}
     for grouped_rows in rows_by_interface.values():
         sorted_rows = sorted(
             grouped_rows,
@@ -682,6 +687,7 @@ def list_site_interfaces(site, counter_mode="delta"):
             "" if not previous_row or "timestamp" not in selected_columns or previous_row["timestamp"] is None
             else str(previous_row["timestamp"])
         )
+        latest_devices_by_name.setdefault(row_data.get("device", ""), []).append(dict(row_data))
         for column in counter_columns:
             if counter_mode == "latest":
                 continue
@@ -706,8 +712,8 @@ def list_site_interfaces(site, counter_mode="delta"):
             "device": device_name,
             "ip": "",
             "generated_at": last_updated or "",
-            "file": "IFSTATE_counters.db",
-            "path": "/polaris/data/IFSTATE_counters.db",
+            "file": "IFSTATE_status.db",
+            "path": "/polaris/data/IFSTATE_status.db",
             "interface_count": len(interfaces),
             "interfaces": interfaces,
         })
@@ -721,7 +727,13 @@ def list_site_interfaces(site, counter_mode="delta"):
         "status_devices": status_payload["devices"],
         "status_total_devices": status_payload["total_devices"],
         "status_total_interfaces": status_payload["total_interfaces"],
-        "counter_path": "/polaris/data/IFSTATE_counters.db",
+        "counter_path": "/polaris/data/IFSTATE_status.db",
+        "latest_counter_devices": [
+            {"device": name, "device_id": name, "file": "IFSTATE_status.db",
+             "generated_at": last_updated, "interfaces": interfaces,
+             "status_summary": interface_status_summary(interfaces)}
+            for name, interfaces in sorted(latest_devices_by_name.items())
+        ],
         "columns": display_columns,
         "last_updated": last_updated or "",
         "devices": devices,
@@ -1503,6 +1515,55 @@ def vlan_mac_counts():
                     "total": len(rows), "counts": rows})
 
 
+def interface_speed_mbps(value):
+    match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([kmg]?)(?:b(?:it)?(?:/s|ps)?)?\s*", str(value or ""), re.I)
+    if not match:
+        return None
+    return float(match[1]) * {"": 1, "k": 0.001, "m": 1, "g": 1000}[match[2].lower()]
+
+
+@app.get("/api/interface_outliers")
+def interface_outliers():
+    if not IFSTATE_COUNTER_DB_PATH.is_file():
+        abort(404, "IFSTATE_status.db not found")
+    try:
+        with sqlite3.connect(IFSTATE_COUNTER_DB_PATH.resolve().as_uri() + "?mode=ro", uri=True) as conn:
+            conn.row_factory = sqlite3.Row
+            columns = [row["name"] for row in conn.execute("PRAGMA table_info(ifstate_counters)")]
+            if not {"site", "device", "interface", "timestamp", "status", "speed"}.issubset(columns):
+                abort(500, "ifstate_counters is missing required interface columns")
+            rows = latest_ifstate_rows(conn.execute("SELECT * FROM ifstate_counters").fetchall(), columns)
+    except sqlite3.Error as error:
+        abort(500, f"Unable to read interface outliers: {error}")
+    error_fields = [name for name in columns if name in {
+        "errors_rx", "errors_tx", "crc_fcs_rx", "crc_fcs_tx", "runts_rx", "runts_tx",
+        "giants_rx", "giants_tx", "collision_rx", "collision_tx"}]
+    sites = {}
+    for row in rows:
+        if str(row["status"] or "").strip().lower() != "up":
+            continue
+        errors = {name: row[name] for name in error_fields if numeric_delta_value(row[name]) > 0}
+        speed = interface_speed_mbps(row["speed"])
+        slow = speed is not None and 0 < speed <= 100
+        if not errors and not slow:
+            continue
+        site = str(row["site"] or "").strip()
+        if not site:
+            continue
+        item = sites.setdefault(site, {"site": site, "error_interfaces": 0, "slow_interfaces": 0, "interfaces": []})
+        item["error_interfaces"] += bool(errors)
+        item["slow_interfaces"] += slow
+        item["interfaces"].append({"device": row["device"], "interface": row["interface"],
+            "speed": row["speed"], "slow": slow, "errors": errors, "timestamp": row["timestamp"],
+            "description": row["description"] if "description" in columns else ""})
+    for item in sites.values():
+        item["affected_interfaces"] = len(item["interfaces"])
+        item["interfaces"].sort(key=lambda row: (str(row["device"]), str(row["interface"])))
+    result = sorted(sites.values(), key=lambda row: (-row["error_interfaces"], -row["slow_interfaces"], row["site"]))
+    return jsonify({"sites": result, "source": "/polaris/data/IFSTATE_status.db",
+                    "latest": max((str(row["timestamp"] or "") for row in rows), default="")})
+
+
 @app.get("/api/site_kpis")
 def site_kpis():
     site = request.args.get("site", "").strip()
@@ -1513,6 +1574,9 @@ def site_kpis():
     definitions = {
         "kpi_vlan_utilization": "queried_at, site, vlan_id, subnet, max_hosts, ep_with_ip, ep_no_ip, available, util_pct, has_ep_data, device_types",
         "kpi_100mbps_interfaces": "queried_at, site, device, interface, description, vlan",
+        "kpi_paloalto_ha": "queried_at, site, fqdn, ip_address, ha_enable, ha_status, model, os_version, serial, arp_ip_cnt",
+        "kpi_rogue_port": "queried_at, site, device_fqdn, device_port, entry_vlan, mac_count, description",
+        "kpi_port_capacity": "queried_at, site, device_fqdn, device_type, device_model, port_in_use, port_available, total_ports, used_pct",
     }
     try:
         with sqlite3.connect(IFSTATE_STATUS_DB_PATH.resolve().as_uri() + "?mode=ro", uri=True) as conn:
@@ -1538,7 +1602,10 @@ def site_kpis():
     return jsonify({"site": site, "source": "/polaris/data/IFSTATE_status.db",
                     "snapshots": snapshots, "queried_at": selected, "missing_tables": missing,
                     "vlans": results["kpi_vlan_utilization"],
-                    "interfaces": results["kpi_100mbps_interfaces"]})
+                    "interfaces": results["kpi_100mbps_interfaces"],
+                    "paloalto_ha": results["kpi_paloalto_ha"],
+                    "rogue_ports": results["kpi_rogue_port"],
+                    "port_capacity": results["kpi_port_capacity"]})
 
 
 @app.route("/api/site_comments", methods=["GET", "POST"])

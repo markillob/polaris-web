@@ -2239,13 +2239,18 @@
       ];
     }
 
+    const interfaceTableRows = new Map();
+
     function renderInterfaceTable(rows, columns = currentInterfaceColumns, options = {}) {
       if (rows.length === 0) {
         return '<div class="empty">No interfaces match the current filter for this device.</div>';
       }
 
-      const body = sortedInterfaceRows(rows, options).map((row) => `
-        <tr class="${[
+      const tableKey = `${options.tableType || "status"}:${options.tableId || ""}`;
+      const orderedRows = sortedInterfaceRows(rows, options);
+      interfaceTableRows.set(tableKey, orderedRows);
+      const body = orderedRows.map((row, index) => `
+        <tr data-interface-row="${index}" class="${[
           options.highlightDown && interfaceIsStatusDown(row) ? "interface-row-down" : "",
           options.warnCounters && interfaceHasCounterWarning(row) ? "interface-row-warning" : ""
         ].filter(Boolean).join(" ")}">
@@ -2327,12 +2332,6 @@
         return;
       }
 
-      let visibleInterfaceCount = 0;
-      const visibleDevices = currentInterfaceDevices.map((device) => {
-        const rows = (device.interfaces || []).filter((row) => interfaceMatchesQuery(device, row, query, currentInterfaceColumns));
-        visibleInterfaceCount += rows.length;
-        return { ...device, visibleInterfaces: rows };
-      }).filter((device) => device.visibleInterfaces.length > 0 || !query);
       let visibleCounterCount = 0;
       const visibleCounterDevices = currentCounterDevices.map((device) => {
         const rows = (device.interfaces || []).filter((row) => (
@@ -2341,22 +2340,22 @@
         ));
         visibleCounterCount += rows.length;
         return { ...device, visibleInterfaces: rows };
-      }).filter((device) => device.visibleInterfaces.length > 0);
+      }).filter((device) => device.visibleInterfaces.length > 0 || !query);
 
-      const totalInterfaces = currentInterfaceDevices.reduce((total, device) => total + (device.interfaces || []).length, 0);
-      countEl.textContent = query
-        ? `Showing ${visibleInterfaceCount} of ${totalInterfaces} interface status rows from ${currentInterfaceDevices.length} device${currentInterfaceDevices.length === 1 ? "" : "s"}`
-        : `Showing ${totalInterfaces} interface status rows from ${currentInterfaceDevices.length} device${currentInterfaceDevices.length === 1 ? "" : "s"}`;
+      document.getElementById("interface-export-counters").disabled = visibleCounterCount === 0;
 
-      if (currentInterfaceDevices.length === 0) {
+      const totalInterfaces = currentCounterDevices.reduce((total, device) => total + (device.interfaces || []).length, 0);
+      countEl.textContent = `Showing ${visibleCounterCount} counter rows of ${totalInterfaces} interfaces from ${visibleCounterDevices.length} devices (down interfaces excluded from tables).`;
+
+      if (currentCounterDevices.length === 0) {
         resultEl.innerHTML = `
-          <div class="empty">No interface status rows found for site ${escapeHtml(siteId)} in IFSTATE_status.db.</div>
+          <div class="empty">No interface rows found for site ${escapeHtml(siteId)} in IFSTATE_status.db (ifstate_counters).</div>
           ${interfaceFooter()}
         `;
         return;
       }
 
-      if (visibleDevices.length === 0) {
+      if (visibleCounterDevices.length === 0) {
         resultEl.innerHTML = `
           <div class="empty">No interface records match the current filter.</div>
           ${interfaceFooter()}
@@ -2364,22 +2363,6 @@
         return;
       }
 
-      const statusTables = visibleDevices.map((device, index) => `
-        <details class="interface-device" ${index === 0 ? "open" : ""}>
-          <summary>
-            <span>${escapeHtml(device.device_id || device.device || "unknown device")}</span>
-            <span class="interface-device-meta">${statusSummaryForDevice(device)} | ${device.visibleInterfaces.length} interface${device.visibleInterfaces.length === 1 ? "" : "s"} | ${escapeHtml(device.file || "")}${device.generated_at ? ` | latest ${escapeHtml(device.generated_at)}` : ""}</span>
-          </summary>
-          <div class="interface-device-body">
-            ${renderInterfaceTable(device.visibleInterfaces, currentInterfaceColumns, {
-              tableType: "status",
-              tableId: `status-${index}`,
-              highlightDown: true,
-              prioritizeDown: currentInterfaceSort.key === "interface"
-            })}
-          </div>
-        </details>
-      `).join("");
       const openCounterSet = openCounterDevices.size
         ? openCounterDevices
         : new Set(visibleCounterDevices.slice(0, 1).map((device) => device.device || "unknown device"));
@@ -2394,7 +2377,7 @@
         >
           <summary>
             <span>${escapeHtml(device.device || "unknown device")}</span>
-            <span class="interface-device-meta">${device.visibleInterfaces.length} interface${device.visibleInterfaces.length === 1 ? "" : "s"} | ${escapeHtml(device.file || "")}${device.generated_at ? ` | latest ${escapeHtml(device.generated_at)}` : ""}</span>
+            <span class="interface-device-meta">${statusSummaryForDevice(device)} | ${(device.interfaces || []).length} interfaces | ${device.visibleInterfaces.length} shown | ${escapeHtml(device.file || "")}${device.generated_at ? ` | latest ${escapeHtml(device.generated_at)}` : ""}</span>
           </summary>
           <div class="interface-device-body">
             ${renderInterfaceTable(device.visibleInterfaces, currentCounterColumns, {
@@ -2410,12 +2393,11 @@
       }).join("");
 
       resultEl.innerHTML = `
-        ${statusTables}
         <details class="counters-section" id="interface-counters-section" ${interfaceCountersExpanded ? "open" : ""}>
           <summary>
             <span class="counters-section-heading">
               <span class="counters-section-label">interface counters</span>
-              <span class="counters-section-hint">${interfaceCounterMode === "latest" ? "Latest counters" : "Counter deltas"} from IFSTATE_counters.db, excluding interfaces with status down.</span>
+              <span class="counters-section-hint">${interfaceCounterMode === "latest" ? "Latest counters" : "Counter deltas"} from IFSTATE_status.db (ifstate_counters), excluding interfaces with status down.</span>
             </span>
             <span class="counters-section-count">${visibleCounterCount} interface${visibleCounterCount === 1 ? "" : "s"}</span>
           </summary>
@@ -2430,6 +2412,35 @@
 
     let interfaceCounterMode = "latest";
 
+    function exportInterfaceCsv(tableType) {
+      const columns = tableType === "counter" ? currentCounterColumns : currentInterfaceColumns;
+      const rows = [];
+      document.querySelectorAll("#interface-results table").forEach(table => {
+        const header = table.querySelector("[data-interface-table]");
+        if (!header || header.dataset.interfaceTable !== tableType) return;
+        const source = interfaceTableRows.get(`${tableType}:${header.dataset.interfaceTableId}`) || [];
+        for (const tr of table.tBodies[0].rows) {
+          const row = source[Number(tr.dataset.interfaceRow)];
+          if (row) rows.push([siteId, row.device || row.device_id || "", ...columns.map(column => interfaceCellValue(row, column.key))]);
+        }
+      });
+      if (!rows.length) return;
+      const encode = value => {
+        const text = String(value ?? "");
+        return csvEscape(/^\s*[=+@-]/.test(text) ? "'" + text : text);
+      };
+      const csv = [["site", "device", ...columns.map(column => column.label)], ...rows]
+        .map(row => row.map(encode).join(",")).join("\r\n") + "\r\n";
+      const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `site_${siteId.replace(/[^a-zA-Z0-9_-]/g, "_")}_interfaces_${tableType === "counter" ? `counters_${interfaceCounterMode}` : "latest"}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
     async function loadInterfaces() {
       setActiveOperation("interfaces");
       operationPanelEl.innerHTML = '<div class="empty">Loading interface data...</div>';
@@ -2441,11 +2452,11 @@
         }
 
         const data = await response.json();
-        currentInterfaceDevices = data.status_devices || [];
+        currentInterfaceDevices = data.latest_counter_devices || data.devices || [];
         currentCounterDevices = data.devices || [];
-        const interfaceColumns = data.status_columns?.length ? data.status_columns : ["timestamp", "interface", "status", "admin_status", "mode", "vlan", "vlans", "speed", "description"];
+        const interfaceColumns = ["timestamp", "interface", "errors_rx", "crc_fcs_rx", "runts_rx", "speed", "description", "status"];
         const counterColumns = data.columns?.length ? data.columns : ["timestamp", "interface", "status", "speed", "description"];
-        currentInterfaceColumns = buildInterfaceColumns(interfaceColumns);
+        currentInterfaceColumns = interfaceColumns.map(key => ({ key, label: interfaceColumnLabel(key) }));
         currentCounterColumns = buildInterfaceColumns(counterColumns);
         currentInterfaceSort = { key: "interface", direction: "asc" };
         currentCounterSort = { key: "interface", direction: "asc" };
@@ -2461,9 +2472,9 @@
           { key: "site", label: "site" }
         ];
         currentInterfaceColumnAliases = buildInterfaceColumnAliases(currentInterfaceFilterColumns);
-        currentInterfaceSourceLine = `Reading interface status from ${data.status_path || "/polaris/data/IFSTATE_status.db"}${data.status_last_updated ? `, latest ${data.status_last_updated}` : ""}`;
-        currentCounterSourceLine = `Reading interface counters from ${data.counter_path || "/polaris/data/IFSTATE_counters.db"}${data.last_updated ? `, latest ${data.last_updated}` : ""}`;
-        updateInterfacesButton(data.status_total_interfaces || 0);
+        currentInterfaceSourceLine = `Reading latest interface values from ${data.counter_path || "/polaris/data/IFSTATE_status.db"} (ifstate_counters)${data.last_updated ? `, latest ${data.last_updated}` : ""}`;
+        currentCounterSourceLine = `Reading interface counters from ${data.counter_path || "/polaris/data/IFSTATE_status.db"} (ifstate_counters)${data.last_updated ? `, latest ${data.last_updated}` : ""}`;
+        updateInterfacesButton(data.total_interfaces || 0);
         operationPanelEl.innerHTML = `
           ${submenuHeader("interfaces")}
           <div class="panel-actions">
@@ -2479,6 +2490,13 @@
           </div>
           <p class="status" id="interface-count"></p>
           <div id="interface-results"></div>
+          <div class="panel-actions">
+            <button type="button" class="secondary-button" id="interface-export-counters" disabled>export counters to csv</button>
+          </div>
+          <div class="endpoint-table-controls" aria-label="Interface table width controls">
+            <label>table width <input data-endpoint-table-size type="range" min="50" max="100" step="5" value="100"><output>100%</output></label>
+            <label><input data-endpoint-table-wide type="checkbox">full width</label>
+          </div>
         `;
         document.getElementById("interface-search").addEventListener("input", renderInterfaceResults);
         document.getElementById("interface-counter-mode").addEventListener("change", event => {
@@ -2486,6 +2504,7 @@
           loadInterfaces();
         });
         document.getElementById("interface-refresh").addEventListener("click", loadInterfaces);
+        document.getElementById("interface-export-counters").addEventListener("click", () => exportInterfaceCsv("counter"));
         renderInterfaceResults();
       } catch (error) {
         operationPanelEl.innerHTML = '<div class="error">Unable to load interface data for this site.</div>';
@@ -3284,6 +3303,35 @@
       }
     }
 
+    function renderKpiChart(title, points, percent = false) {
+      const valid = points.filter(point => point.value !== null && point.value !== undefined && point.value !== "" && Number.isFinite(Number(point.value)));
+      const maximum = percent ? 100 : Math.max(1, ...valid.map(point => Number(point.value)));
+      return `<div class="kpi-chart" role="group" aria-label="${escapeHtml(title)} graph" style="margin-bottom: 20px;">
+          ${points.length ? points.map(point => {
+            const available = valid.includes(point);
+            const value = Number(point.value);
+            const label = available ? `${percent ? value.toFixed(1) : value}${percent ? "%" : ""}` : "no data";
+            return `<div class="kpi-chart-row"><span>${escapeHtml(point.label)}</span><div class="kpi-chart-track" aria-hidden="true"><div class="kpi-chart-bar" style="width:${available ? Math.max(0, Math.min(100, value / maximum * 100)) : 0}%"></div></div><strong>${escapeHtml(label)}</strong></div>`;
+          }).join("") : '<div class="empty">No data for this snapshot.</div>'}
+        </div>`;
+    }
+
+    function kpiCategoryCounts(rows, key) {
+      const counts = new Map();
+      for (const row of rows) {
+        const label = String(row[key] ?? "").trim() || "unknown";
+        counts.set(label, (counts.get(label) || 0) + 1);
+      }
+      return [...counts].map(([label, value]) => ({label, value}));
+    }
+
+    function renderExtraKpi(title, rows, fields, points, percent = false) {
+      const columns = fields.map(key => ({key, label: key.replace(/_/g, " ")}));
+      const normalized = rows.map(row => Object.fromEntries(fields.map(key => [key, row[key] ?? "no data"])));
+      return `<details class="interface-device" open><summary><span>${escapeHtml(title)} (${rows.length})</span><span class="site-summary-icon" aria-hidden="true"></span></summary>
+        <div class="interface-device-body">${renderKpiChart(title, points, percent)}${rows.length ? renderTable(normalized, columns, {sortable: true, sortPrefix: "kpi", sortIndicator: () => "\u2195"}) : '<div class="empty">No rows recorded for this snapshot.</div>'}</div></details>`;
+    }
+
     function renderKpiTables(data) {
       const display = value => value === null || value === undefined ? "no data" : value;
       const endpointFields = ["ep_with_ip", "ep_no_ip", "available", "util_pct"];
@@ -3310,6 +3358,7 @@
         <details class="interface-device" open>
           <summary><span>VLAN endpoint utilization (${rows.length})</span><span class="site-summary-icon" aria-hidden="true"></span></summary>
           <div class="interface-device-body">
+            ${renderKpiChart("VLAN utilization", vlans.map(row => ({label: `VLAN ${row.vlan_id} ${row.subnet || ""}`, value: Number(row.has_ep_data) === 1 ? row.util_pct : null})), true)}
             ${rows.length ? renderTable(rows, [
               { key: "vlan_id", label: "VLAN" }, { key: "subnet", label: "Subnet" },
               { key: "max_hosts", label: "Max hosts" }, { key: "ep_with_ip", label: "EP with IP" },
@@ -3323,6 +3372,7 @@
         <details class="interface-device" open>
           <summary><span>100 Mbps interfaces (up): ${interfaces.length}</span><span class="site-summary-icon" aria-hidden="true"></span></summary>
           <div class="interface-device-body">
+            ${renderKpiChart("100 Mbps interfaces per device", kpiCategoryCounts(interfaces, "device"))}
             ${interfaces.length ? renderTable(interfaces, [
               { key: "device", label: "Device" }, { key: "interface", label: "Interface" },
               { key: "speed", label: "Speed" }, { key: "vlan", label: "VLAN" },
@@ -3330,13 +3380,22 @@
             ], { sortable: true, sortPrefix: "kpi", sortIndicator: () => "\u2195" }) : '<div class="empty">No 100 Mbps interface rows recorded for this snapshot.</div>'}
           </div>
         </details>
+        ${renderExtraKpi("PAN-OS HA status", data.paloalto_ha || [],
+          ["fqdn", "ip_address", "ha_enable", "ha_status", "model", "os_version", "serial", "arp_ip_cnt"],
+          kpiCategoryCounts(data.paloalto_ha || [], "ha_status"))}
+        ${renderExtraKpi("Rogue / multi-MAC ports", data.rogue_ports || [],
+          ["device_fqdn", "device_port", "entry_vlan", "mac_count", "description"],
+          (data.rogue_ports || []).map(row => ({label: `${row.device_fqdn} / ${row.device_port} / VLAN ${row.entry_vlan ?? "-"}`, value: row.mac_count})))}
+        ${renderExtraKpi("Port capacity utilization (%)", data.port_capacity || [],
+          ["device_fqdn", "device_type", "device_model", "port_in_use", "port_available", "total_ports", "used_pct"],
+          (data.port_capacity || []).map(row => ({label: row.device_fqdn, value: row.used_pct})), true)}
         <p class="status">Reading IFSTATE_status.db | Snapshot: ${escapeHtml(data.queried_at || "none")} | ${rows.length} VLAN rows | ${interfaces.length} 100 Mbps rows</p>`;
     }
 
     function compareKpiCells(left, right, key, direction) {
       const missing = value => !value.trim() || value === "no data";
       if (missing(left) || missing(right)) return Number(missing(left)) - Number(missing(right));
-      const numeric = ["vlan_id", "max_hosts", "ep_with_ip", "ep_no_ip", "available", "util_pct", "speed"];
+      const numeric = ["vlan_id", "max_hosts", "ep_with_ip", "ep_no_ip", "available", "util_pct", "speed", "arp_ip_cnt", "mac_count", "port_in_use", "port_available", "total_ports", "used_pct"];
       const order = numeric.includes(key)
         ? parseFloat(left) - parseFloat(right)
         : siteSorter.compare(left, right);
@@ -3490,37 +3549,25 @@
         const key = interfaceSortButton.dataset.interfaceSort;
         const tableType = interfaceSortButton.dataset.interfaceTable || "status";
         const tableId = interfaceSortButton.dataset.interfaceTableId || "";
-        const buttonTop = interfaceSortButton.getBoundingClientRect().top;
-        const isCounterSort = Boolean(interfaceSortButton.closest(".counters-section"));
-        if (isCounterSort) {
-          const counterDevice = interfaceSortButton.closest('[data-interface-device-table="counter"]');
-          const counterDeviceId = counterDevice?.dataset.interfaceDeviceId || "";
-          if (counterDeviceId) {
-            openCounterDevices.add(counterDeviceId);
-          }
-          interfaceCountersExpanded = true;
-          currentCounterSort = {
-            key,
-            direction: currentCounterSort.key === key && currentCounterSort.direction === "asc" ? "desc" : "asc"
-          };
-        } else {
-          currentInterfaceSort = {
-            key,
-            direction: currentInterfaceSort.key === key && currentInterfaceSort.direction === "asc" ? "desc" : "asc"
-          };
-        }
-        renderInterfaceResults();
-        requestAnimationFrame(() => {
-          const replacementButton = Array.from(operationPanelEl.querySelectorAll("[data-interface-sort]")).find((button) => (
-            button.dataset.interfaceSort === key &&
-            (button.dataset.interfaceTable || "status") === tableType &&
-            (button.dataset.interfaceTableId || "") === tableId
-          ));
-          if (replacementButton) {
-            window.scrollBy({ top: replacementButton.getBoundingClientRect().top - buttonTop });
-            replacementButton.blur();
-          }
+        const table = interfaceSortButton.closest("table");
+        const header = interfaceSortButton.closest("th");
+        const direction = header.getAttribute("aria-sort") === "ascending" ? -1 : 1;
+        const rows = interfaceTableRows.get(`${tableType}:${tableId}`) || [];
+        const tbody = table.tBodies[0];
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+        const nodes = [...tbody.rows].sort((a, b) => {
+          const left = rows[Number(a.dataset.interfaceRow)];
+          const right = rows[Number(b.dataset.interfaceRow)];
+          return compareInterfaceValues(left, right, key) * direction ||
+            siteSorter.compare(String(left.interface || ""), String(right.interface || ""));
         });
+        // Preserve the device accordion, horizontal scroll, and focused header.
+        tbody.append(...nodes);
+        table.querySelectorAll("th").forEach(th => th.removeAttribute("aria-sort"));
+        header.setAttribute("aria-sort", direction === 1 ? "ascending" : "descending");
+        interfaceSortButton.focus({ preventScroll: true });
+        window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
         return;
       }
 
@@ -3588,6 +3635,7 @@
     });
     loadSite().then(() => {
       if (siteId && new URLSearchParams(window.location.search).get("view") === "photos") loadPhotos();
+      if (siteId && new URLSearchParams(window.location.search).get("view") === "interfaces") loadInterfaces();
     });
   </script>
 </body>

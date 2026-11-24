@@ -336,6 +336,17 @@ body[data-theme="dark"] .theme-toggle[data-active-theme="dark"] .theme-toggle-da
   color: #f8fafc;
 }
 /* Endpoint table controls also support dynamically loaded site submenus. */
+.kpi-chart { display: grid; gap: 12px; }
+.kpi-chart-row { display: grid; grid-template-columns: minmax(140px, 2fr) minmax(80px, 3fr) minmax(65px, auto); align-items: center; gap: 12px; }
+.kpi-chart-row > span { overflow-wrap: anywhere; }
+.kpi-chart-track { height: 14px; background: #dce2e8; border-radius: 3px; overflow: hidden; }
+.kpi-chart-bar { height: 100%; background: #167b70; }
+body[data-theme="dark"] .kpi-chart-track { background: #424b55; }
+body[data-theme="dark"] .kpi-chart-bar { background: #59c9b9; }
+@media (max-width: 640px) {
+  .kpi-chart-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .kpi-chart-row > span { grid-column: 1 / -1; }
+}
 main.endpoint-table-wide:has(.endpoint-table-controls) {
   width: calc(100% - 24px);
   max-width: none;
